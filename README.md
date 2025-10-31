@@ -2,7 +2,8 @@
 
 ### About
 
-Python packaged designed for OLS inference.
+Python packaged designed for advanced OLS inference.
+
 
 ### Example Output
 
@@ -38,25 +39,21 @@ BIC                        6747.196       6747.196
 *p<0.1; **p<0.05; ***p<0.01
 ```
 
-### Building the Package
+### Build and Install the Package
 
 Build as a package from the source directory:
 
 ```bash
+git clone https://github.com/axtaylor/python-ordinary_least_squares.git
+
 cd ./python-ordinary_least_squares
 
 python -m build
-```
 
-Install with pip:
-
-```bash
 pip install ./dist/ordinary_least_squares-0.0.1-py3-none-any.whl
 ```
 
 ### Importing the Package
-
-Import the package into your project
 
 ```python
 from ordinary_least_squares import *
@@ -71,7 +68,22 @@ from ordinary_least_squares import LinearRegressionOLS, summary
 ```
 
 
+
+
+## Basic Usage
+
+
 ### Model Fitting
+
+```python
+LinearRegressionOLS().fit(
+                        X=X,
+                        y=y,
+                        feature_names=None,
+                        target_name=None,
+                        alpha=0.05
+                        )
+```
 
 `X`: `np.ndarray` or `pd.DataFrame` consisting of features and a column of ones for the intercept.
 
@@ -83,21 +95,61 @@ from ordinary_least_squares import LinearRegressionOLS, summary
 
 `alpha = 0.05`: Confidence interval for the model's initial predictions.
 
+
+
+
+
+
+---
+### Model Predicting
+
 ```python
-model = LinearRegressionOLS().fit(
-                                X=x,
-                                y=y,
-                                feature_names=None,
-                                target_name=None,
-                                alpha=0.05
-                            )
+model.predict(X, alpha=0.05, return_table=False)
 ```
 
-### Example Usage
+`X`: `np.ndarray` consisting of values for the models features,
+in order. Do not include the intercept.
 
-See:
+`alpha = 0.05`: Confidence interval for the model's prediction.
+
+`return_table = False`: Returns a prediction as `np.float64()` when false, else returns a dictionary containing the prediction, standard error, t-statistic, p-value, and confidence ranges.
+
+
+
+
+
+---
+### Advanced Usage Documentation
+
+See the Jupyter notebook for advanced use cases.
+
+- Hypothesis testing on predictions using numeric values or feature arrays.
+- Generating tables predicting the target value over a range of X values.
+- Generating a table of the first derivative for a set of discrete predictions.
+- Stacking multiple regression outputs.
+- Testing models for multicolinearity.
+- Applying robust standard errors.
 
 ```
 /tests/linear_regression_example.ipynb
+```
+
+
+
+
+
+
+
+---
+### Citation
+
+If you use this package in your research, please cite:
+```bibtex
+@software{python-ordinary_least_squares,
+  author = {Lucas Taylor},
+  title = {ordinary_least_squares: OLS Regression for Python},
+  year = {2025},
+  url = {https://github.com/axtaylor/ordinary_least_squares}
+}
 ```
 
