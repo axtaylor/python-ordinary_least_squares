@@ -1,2 +1,4 @@
 datasets/
 dist/
+src/ordinary_least_squares/services/__pycache__
+src/ordinary_least_squares/utils/__pycache__
