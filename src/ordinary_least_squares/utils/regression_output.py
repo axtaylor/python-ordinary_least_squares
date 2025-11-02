@@ -1,95 +1,93 @@
-class RegressionOutput:
+def summary(models, col_width=15):
 
-    def summary(models, col_width=15):
+    compression = 20
+    if not isinstance(models, list):
+        models = [models]
 
-        compression = 20
-        if not isinstance(models, list):
-            models = [models]
+    for i, model in enumerate(models):
+        if model.theta is None:
+            raise ValueError(f"Error: Model {i+1} is not fitted.")
 
-        for i, model in enumerate(models):
-            if model.theta is None:
-                raise ValueError(f"Error: Model {i+1} is not fitted.")
+    format_length = compression + (len(models)*col_width)
+    header = (
+        f"\n{"="*format_length}\n"
+        "OLS Regression Results\n"
+        f"{"="*format_length}\n"
+        f"{'Dependent:':<{compression}}" + "".join(f"{m.target:>{col_width}}" for m in models) + "\n"
+        f"{"-"*format_length}\n"
+    )
 
-        format_length = compression + (len(models)*col_width)
-        header = (
-            f"\n{"="*format_length}\n"
-            "OLS Regression Results\n"
-            f"{"="*format_length}\n"
-            f"{'Dependent:':<{compression}}" + "".join(f"{m.target:>{col_width}}" for m in models) + "\n"
-            f"{"-"*format_length}\n"
-        )
+    all_features = []
+    for model in models:
+        for feature in model.feature_names:
+            if feature not in all_features:
+                all_features.append(feature)
 
-        all_features = []
+    rows = []
+    for feature in all_features:
+        coef_row = f"{feature:<{compression}}"
+        se_row = " " * compression
+        #t_row = " " * compression
+
         for model in models:
-            for feature in model.feature_names:
-                if feature not in all_features:
-                    all_features.append(feature)
+            if feature in model.feature_names:
+                feature_index = list(model.feature_names).index(feature)
+                coef = model.theta[feature_index]
+                se = model.std_error_coefficient[feature_index]
+                p = model.p_value_coefficient[feature_index]
+                #t = model.t_stat_coefficient[feature_index]
+                stars = (
+                    "***" if p < 0.01 else
+                    "**" if p < 0.05 else
+                    "*" if p < 0.1 else
+                    ""
+                )
+                coef_fmt = (
+                    f"{coef:.4f}{stars}"
+                    if abs(coef) > 0.0001
+                    else f"{coef:.2e}{stars}"
+                )
+                se_fmt = (
+                    f"({se:.4f})"
+                    if abs(se) > 0.0001
+                    else f"({se:.2e})"
+                )
+                #t_fmt = f"{t:.4f}" if abs(t) > 0.0001 else f"({t:.2e})"
+                coef_row += f"{coef_fmt:>{col_width}}"
+                se_row += f"{se_fmt:>{col_width}}"
+                #t_row += f"{t_fmt:>{col_width}}"
+            else:
+                coef_row += " " * col_width
+                se_row += " " * col_width
+                #t_row += " " * col_width
 
-        rows = []
-        for feature in all_features:
-            coef_row = f"{feature:<{compression}}"
-            se_row = " " * compression
-            #t_row = " " * compression
+        rows.append(" ")
+        rows.append(coef_row)
+        rows.append(se_row)
+        #rows.append(t_row)
 
-            for model in models:
-                if feature in model.feature_names:
-                    feature_index = list(model.feature_names).index(feature)
-                    coef = model.theta[feature_index]
-                    se = model.std_error_coefficient[feature_index]
-                    p = model.p_value_coefficient[feature_index]
-                    #t = model.t_stat_coefficient[feature_index]
-                    stars = (
-                        "***" if p < 0.01 else
-                        "**" if p < 0.05 else
-                        "*" if p < 0.1 else
-                        ""
-                    )
-                    coef_fmt = (
-                        f"{coef:.4f}{stars}"
-                        if abs(coef) > 0.0001
-                        else f"{coef:.2e}{stars}"
-                    )
-                    se_fmt = (
-                        f"({se:.4f})"
-                        if abs(se) > 0.0001
-                        else f"({se:.2e})"
-                    )
-                    #t_fmt = f"{t:.4f}" if abs(t) > 0.0001 else f"({t:.2e})"
-                    coef_row += f"{coef_fmt:>{col_width}}"
-                    se_row += f"{se_fmt:>{col_width}}"
-                    #t_row += f"{t_fmt:>{col_width}}"
-                else:
-                    coef_row += " " * col_width
-                    se_row += " " * col_width
-                    #t_row += " " * col_width
+    stats_lines = [
+        ("R-squared", "r_squared"),
+        ("Adjusted R-squared", "r_squared_adjusted"),
+        ("F Statistic", "f_statistic"),
+        ("Observations", lambda m: m.X.shape[0]),
+        ("Log Likelihood", "log_likelihood"),
+        ("AIC", "aic"),
+        ("BIC", "bic")
+    ]
 
-            rows.append(" ")
-            rows.append(coef_row)
-            rows.append(se_row)
-            #rows.append(t_row)
+    stats = f"\n{"-"*format_length}\n"
 
-        stats_lines = [
-            ("R-squared", "r_squared"),
-            ("Adjusted R-squared", "r_squared_adjusted"),
-            ("F Statistic", "f_statistic"),
-            ("Observations", lambda m: m.X.shape[0]),
-            ("Log Likelihood", "log_likelihood"),
-            ("AIC", "aic"),
-            ("BIC", "bic")
-        ]
+    for label, attr in stats_lines:
+        stat_row = f"{label:<{compression}}"
+        for model in models:
+            stat_row += f"{(attr(model) if callable(attr) else getattr(model, attr)):>{col_width}.3f}"
+        stats += stat_row + "\n"
 
-        stats = f"\n{"-"*format_length}\n"
-
-        for label, attr in stats_lines:
-            stat_row = f"{label:<{compression}}"
-            for model in models:
-                stat_row += f"{(attr(model) if callable(attr) else getattr(model, attr)):>{col_width}.3f}"
-            stats += stat_row + "\n"
-
-        return (
-            header +
-            "\n".join(rows) + "\n" +
-            stats +
-            f"{"="*format_length}\n"
-            "*p<0.1; **p<0.05; ***p<0.01\n"
+    return (
+        header +
+        "\n".join(rows) + "\n" +
+        stats +
+        f"{"="*format_length}\n"
+        "*p<0.1; **p<0.05; ***p<0.01\n"
     )

@@ -1,14 +1,12 @@
 from dataclasses import dataclass, field
-from .services.variance_inflation_factor import VarianceInflationFactor
-from .services.robust_std_error import RobustStandardError
-from .services.hypothesis_testing import HypothesisTesting
-from .services.inference_table import InferenceTable
-from .services.predict import Predict
-from .services.fit import ModelFit
-from .utils.regression_output import RegressionOutput
-
+from .services.variance_inflation_factor import variance_inflation_factor
+from .services.robust_std_error import robust_se
+from .services.hypothesis_testing import hypothesis_testing
+from .services.linear_predict import predict
+from .services.linear_fit import fit
+from .utils.inference_table import inference_table
+from .utils.regression_output import summary
 import numpy as np
-from scipy.stats import t as t_dist
 
 @dataclass
 class LinearRegressionOLS:
@@ -48,10 +46,10 @@ class LinearRegressionOLS:
 
     def __str__(self):
         self._model_is_fitted()
-        return RegressionOutput.summary(self)
+        return summary(self)
 
     def fit(self, X, y, feature_names = None, target_name = None, alpha = 0.05):
-        return ModelFit.fit(self, X, y, feature_names, target_name, alpha)
+        return fit(self, X, y, feature_names, target_name, alpha)
     
     def _model_is_fitted(self):
         if self.theta is None:
@@ -59,20 +57,20 @@ class LinearRegressionOLS:
     
     def inference_table(self):
         self._model_is_fitted()
-        return InferenceTable.inference_table(self)
+        return inference_table(self)
 
     def predict(self, X, alpha=0.05, return_table=False):
         self._model_is_fitted()
-        return Predict.predict(self, X, alpha, return_table)
+        return predict(self, X, alpha, return_table)
 
     def hypothesis_testing(self, test, hyp, alpha=0.05):
         self._model_is_fitted()
-        return HypothesisTesting.hypothesis_testing(self, test, hyp, alpha)
+        return hypothesis_testing(self, test, hyp, alpha)
 
     def variance_inflation_factor(self):
         self._model_is_fitted()
-        return VarianceInflationFactor.variance_inflation_factor(self)
+        return variance_inflation_factor(self)
 
     def robust_se(self, type="HC3"):
         self._model_is_fitted()
-        return RobustStandardError.robust_se(self, type)
+        return robust_se(self, type)

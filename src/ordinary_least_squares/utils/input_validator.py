@@ -1,49 +1,47 @@
 import numpy as np 
 
-class InputValidation:
-    
-    def validate(X: np.ndarray, y: np.ndarray, alpha: float):
+def validate(X: np.ndarray, y: np.ndarray, alpha: float):
 
-        if X is None or y is None:
-            raise ValueError("X and y cannot be None")
-        
-        X_array = np.asarray(X, dtype=float)
-        y_array = np.asarray(y, dtype=float)
-        
-        if X_array.size == 0 or y_array.size == 0:
-            raise ValueError("X and y cannot be empty")
-        
-        if len(X_array.shape) != 2:
-            raise ValueError(f"X must be 2D, got shape {X_array.shape}")
-        
-        if len(y_array.shape) != 1:
-            if len(y_array.shape) == 2 and y_array.shape[1] == 1:
-                y_array = y_array.flatten()
-            else:
-                raise ValueError(f"y must be 1D, got shape {y_array.shape}")
-        
-        if X_array.shape[0] != y_array.shape[0]:
-            raise ValueError(
-                f"X and y must have same number of observations. "
-                f"Got X: {X_array.shape[0]}, y: {y_array.shape[0]}"
-        )
-        
-        if X_array.shape[0] <= X_array.shape[1]:
-            raise ValueError(
-                f"Insufficient observations. Need n > k, "
-                f"got n={X_array.shape[0]}, k={X_array.shape[1]}"
-        )
-        
-        if not (0 < alpha < 1):
-            raise ValueError(f"Alpha must be between 0 and 1, got {alpha}")
-        
-        if np.any(~np.isfinite(X_array)):
-            raise ValueError("X contains NaN or infinite values")
-        
-        if np.any(~np.isfinite(y_array)):
-            raise ValueError("y contains NaN or infinite values")
-        
-        return (
-            X_array,
-            y_array
+    if X is None or y is None:
+        raise ValueError("X and y cannot be None")
+    
+    X_array = np.asarray(X, dtype=float)
+    y_array = np.asarray(y, dtype=float)
+    
+    if X_array.size == 0 or y_array.size == 0:
+        raise ValueError("X and y cannot be empty")
+    
+    if len(X_array.shape) != 2:
+        raise ValueError(f"X must be 2D, got shape {X_array.shape}")
+    
+    if len(y_array.shape) != 1:
+        if len(y_array.shape) == 2 and y_array.shape[1] == 1:
+            y_array = y_array.flatten()
+        else:
+            raise ValueError(f"y must be 1D, got shape {y_array.shape}")
+    
+    if X_array.shape[0] != y_array.shape[0]:
+        raise ValueError(
+            f"X and y must have same number of observations. "
+            f"Got X: {X_array.shape[0]}, y: {y_array.shape[0]}"
     )
+    
+    if X_array.shape[0] <= X_array.shape[1]:
+        raise ValueError(
+            f"Insufficient observations. Need n > k, "
+            f"got n={X_array.shape[0]}, k={X_array.shape[1]}"
+    )
+    
+    if not (0 < alpha < 1):
+        raise ValueError(f"Alpha must be between 0 and 1, got {alpha}")
+    
+    if np.any(~np.isfinite(X_array)):
+        raise ValueError("X contains NaN or infinite values")
+    
+    if np.any(~np.isfinite(y_array)):
+        raise ValueError("y contains NaN or infinite values")
+        
+    return (
+        X_array,
+        y_array
+)
