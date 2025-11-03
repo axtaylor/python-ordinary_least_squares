@@ -71,6 +71,6 @@ class LinearRegressionOLS:
         self._model_is_fitted()
         return variance_inflation_factor(self)
 
-    def robust_se(self, type="HC3"):
+    def robust_se(self, apply=False, type="HC3"):
         self._model_is_fitted()
-        return robust_se(self, type)
+        return robust_se(self, apply, type)

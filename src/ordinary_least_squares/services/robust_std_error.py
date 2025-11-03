@@ -1,10 +1,15 @@
 import numpy as np
 from scipy.stats import t as t_dist
 
-def robust_se(model, type):
+def robust_se(model, apply, type):
 
-    n, k = model.X.shape
-    h = np.sum(model.X @ model.xtx_inv * model.X, axis=1)
+    X = model.X
+    XTX_INV = model.xtx_inv
+    THETA = model.theta
+    ALPHA = model.alpha
+    DF = model.degrees_freedom
+    n, k = X.shape
+    h = np.sum(X @ XTX_INV * X, axis=1)
     sr = model.residuals.reshape(-1, 1).flatten()**2
 
     HC_ = {
@@ -16,18 +21,30 @@ def robust_se(model, type):
 
     try:
         omega_diagonal = HC_[type](sr, n, k, h)
-        X_omega = model.X * np.sqrt(omega_diagonal)[:, None]                   # Multiply each X row by X*(diagonal weights)^(0.5)
-        robust_cov = model.xtx_inv @ (X_omega.T @ X_omega) @ model.xtx_inv      # Sandwich
+        X_omega = X * np.sqrt(omega_diagonal)[:, None]                   # Multiply each X row by X*(diagonal weights)^(0.5)
+        robust_cov = XTX_INV @ (X_omega.T @ X_omega) @ XTX_INV             # Sandwich
         robust_se = np.sqrt(np.diag(robust_cov))                              # Diagonal extract the var-cov
-        robust_t_stat = model.theta / robust_se
+        robust_t_stat = THETA / robust_se
+        robust_p = 2 * (1 - t_dist.cdf(abs(robust_t_stat), DF))
+        t_crit = t_dist.ppf(1 - ALPHA/2, DF)
+        robust_ci_low = THETA - t_crit * robust_se
+        robust_ci_high = THETA + t_crit * robust_se
+
+        if apply:
+            model.variance_coefficient = robust_cov
+            model.std_error_coefficient = robust_se
+            model.t_stat_coefficient = robust_t_stat
+            model.p_value_coefficient = robust_p
+            model.ci_low = robust_ci_low
+            model.ci_high = robust_ci_high
 
         return {
-        "feature": model.feature_names,
+        "feature":   model.feature_names,
         "robust_se": robust_se,
-        "robust_t": robust_t_stat,
-        "robust_p": 2 * (1 - t_dist.cdf(abs(robust_t_stat), model.degrees_freedom)),
-        #"type": type,
-        #"covariance": robust_cov,
+        "robust_t":  robust_t_stat,
+        "robust_p":  robust_p,
+        "ci_low":    robust_ci_low,
+        "ci_high":   robust_ci_high,
     }
     
     except KeyError:
