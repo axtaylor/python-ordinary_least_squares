@@ -11,7 +11,7 @@ import numpy as np
 @dataclass
 class LinearRegressionOLS:
 
-    alpha: float = None
+    alpha: float = None                                 # robust_se and inference_table. set on fit.
     feature_names: list = field(default_factory=list)
     target: str = None
 
@@ -20,16 +20,17 @@ class LinearRegressionOLS:
     
     degrees_freedom: int = None
     xtx_inv: np.ndarray = field(default=None, repr=False)
+    residuals: np.ndarray = field(default=None, repr=False)
     theta: np.ndarray = field(default=None)
     coefficients: np.ndarray = field(default=None)
     intercept: float = None
-    residuals: np.ndarray = field(default=None, repr=False)
-
+    
     rss: float = None
     tss: float = None
     ess: float = None
     mse: float = None
     rmse: float = None
+    f_statistic: float = None
     r_squared: float = None
     r_squared_adjusted: float = None
     log_likelihood: float = None
@@ -37,7 +38,7 @@ class LinearRegressionOLS:
     bic: float = None
 
     # Inference
-    variance_coefficient: np.ndarray = field(default=None, repr=False)
+    variance_coefficient: np.ndarray = field(default=None)
     std_error_coefficient: np.ndarray = field(default=None)
     t_stat_coefficient: np.ndarray = field(default=None)
     p_value_coefficient: np.ndarray = field(default=None)
@@ -54,11 +55,7 @@ class LinearRegressionOLS:
     def _model_is_fitted(self):
         if self.theta is None:
             raise ValueError("Model is not fitted. Call 'fit' with arguments before using this method.")
-    
-    def inference_table(self):
-        self._model_is_fitted()
-        return inference_table(self)
-
+        
     def predict(self, X, alpha=0.05, return_table=False):
         self._model_is_fitted()
         return predict(self, X, alpha, return_table)
@@ -66,11 +63,15 @@ class LinearRegressionOLS:
     def hypothesis_testing(self, test, hyp, alpha=0.05):
         self._model_is_fitted()
         return hypothesis_testing(self, test, hyp, alpha)
+    
+    def robust_se(self, apply=False, type="HC3"):
+        self._model_is_fitted()
+        return robust_se(self, apply, type)
 
     def variance_inflation_factor(self):
         self._model_is_fitted()
         return variance_inflation_factor(self)
-
-    def robust_se(self, apply=False, type="HC3"):
+    
+    def inference_table(self):
         self._model_is_fitted()
-        return robust_se(self, apply, type)
+        return inference_table(self)

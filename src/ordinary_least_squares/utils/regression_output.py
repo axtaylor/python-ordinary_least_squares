@@ -1,19 +1,21 @@
-def summary(models, col_width=15):
+def summary(*args):
 
-    compression = 20
-    if not isinstance(models, list):
-        models = [models]
+    col_width, col_span, models = (
+        15,
+        20,
+        list(args)
+    )
 
     for i, model in enumerate(models):
         if model.theta is None:
             raise ValueError(f"Error: Model {i+1} is not fitted.")
 
-    format_length = compression + (len(models)*col_width)
+    format_length = col_span + (len(models)*col_width)
     header = (
         f"\n{"="*format_length}\n"
         "OLS Regression Results\n"
         f"{"="*format_length}\n"
-        f"{'Dependent:':<{compression}}" + "".join(f"{m.target:>{col_width}}" for m in models) + "\n"
+        f"{'Dependent:':<{col_span}}" + "".join(f"{m.target:>{col_width}}" for m in models) + "\n"
         f"{"-"*format_length}\n"
     )
 
@@ -25,9 +27,9 @@ def summary(models, col_width=15):
 
     rows = []
     for feature in all_features:
-        coef_row = f"{feature:<{compression}}"
-        se_row = " " * compression
-        #t_row = " " * compression
+        coef_row = f"{feature:<{col_span}}"
+        se_row = " " * col_span
+        #t_row = " " * col_span
 
         for model in models:
             if feature in model.feature_names:
@@ -79,7 +81,7 @@ def summary(models, col_width=15):
     stats = f"\n{"-"*format_length}\n"
 
     for label, attr in stats_lines:
-        stat_row = f"{label:<{compression}}"
+        stat_row = f"{label:<{col_span}}"
         for model in models:
             stat_row += f"{(attr(model) if callable(attr) else getattr(model, attr)):>{col_width}.3f}"
         stats += stat_row + "\n"
