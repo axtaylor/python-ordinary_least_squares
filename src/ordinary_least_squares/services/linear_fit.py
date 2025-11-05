@@ -7,14 +7,15 @@ def fit(model, X, y, feature_names, target_name, alpha):
 
     X_array, y_array = validate(X, y, alpha)
 
+    # Names override -> Pandas column names -> Generic in place names.
     model.feature_names = (
-        X.columns if hasattr(X, 'columns')
-        else feature_names if feature_names is not None
-        else ['const', *[f"Feature {i}" for i in range(1,X.shape[1])]] # Generic names for no args np array inputs, assuming const first.
+        ['const', *feature_names] if feature_names is not None
+        else X.columns if hasattr(X, 'columns')
+        else ['const', *[f"Feature {i}" for i in range(1,X.shape[1])]]
     )
     model.target = (
-        y.name if hasattr(y, 'name')
-        else target_name if target_name is not None
+        target_name if target_name is not None
+        else y.name if hasattr(y, 'name')
         else "Dependent"
     )
 

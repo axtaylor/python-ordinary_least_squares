@@ -89,9 +89,9 @@ LinearRegressionOLS().fit(
 
 `y`: `np.ndarray` or `pd.Series` consisting of a target.
 
-`feature_names`: List of strings consisting of names for the features. Use only when fitting models on `np.ndarray` objects. Do not include a name for the constant column. Enter names in order of columns in the array.
+`feature_names`: List of strings consisting of names for the features. Useful when fitting models on `np.ndarray` objects. Do not include a name for the constant column. Enter names in order of columns in the array.
 
-`target_name`: String consisting of a name for the target data. Use only when fitting models on `np.ndarray` objects. 
+`target_name`: String consisting of a name for the target data. Useful when fitting models on `np.ndarray` objects. 
 
 `alpha = 0.05`: Confidence interval for the model's initial predictions.
 

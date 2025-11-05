@@ -12,11 +12,11 @@ def summary(*args):
 
     format_length = col_span + (len(models)*col_width)
     header = (
-        f"\n{"="*format_length}\n"
+        f"\n{'='*format_length}\n"
         "OLS Regression Results\n"
-        f"{"="*format_length}\n"
+        f"{'-'*format_length}\n"
         f"{'Dependent:':<{col_span}}" + "".join(f"{m.target:>{col_width}}" for m in models) + "\n"
-        f"{"-"*format_length}\n"
+        f"{'-'*format_length}\n"
     )
 
     all_features = []
@@ -78,7 +78,7 @@ def summary(*args):
         ("BIC", "bic")
     ]
 
-    stats = f"\n{"-"*format_length}\n"
+    stats = f"\n{'-'*format_length}\n"
 
     for label, attr in stats_lines:
         stat_row = f"{label:<{col_span}}"
@@ -90,6 +90,6 @@ def summary(*args):
         header +
         "\n".join(rows) + "\n" +
         stats +
-        f"{"="*format_length}\n"
+        f"{'='*format_length}\n"
         "*p<0.1; **p<0.05; ***p<0.01\n"
     )

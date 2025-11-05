@@ -39,12 +39,12 @@ def robust_se(model, apply, type):
             model.ci_high = robust_ci_high
 
         return {
-        "feature":   model.feature_names,
-        "robust_se": robust_se,
-        "robust_t":  robust_t_stat,
-        "robust_p":  robust_p,
-        "ci_low":    robust_ci_low,
-        "ci_high":   robust_ci_high,
+        "feature":            model.feature_names,
+        "robust_se":          robust_se,
+        "robust_t":           robust_t_stat,
+        "robust_p":           robust_p,
+        f"ci_low_{ALPHA}":    robust_ci_low,
+        f"ci_high_{ALPHA}":   robust_ci_high,
     }
     
     except KeyError:

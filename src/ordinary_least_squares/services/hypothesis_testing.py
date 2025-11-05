@@ -45,7 +45,7 @@ def hypothesis_testing(model, test, hyp, alpha):
             "hypothesis_labels": [hypothesis_features],
             "prediction": [prediction.item()],
             "hypothesis": [hypothesis.item()],
-            "t-statistic": [t_stat.item()],
+            "t_statistic": [t_stat.item()],
             "P>|t|": [p.item()],
             },
         }
