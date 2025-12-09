@@ -25,7 +25,7 @@ cd ./python-ordinary_least_squares
 
 python -m build
 
-pip install ./dist/ordinary_least_squares-0.0.1-py3-none-any.whl
+pip install ./dist/py_regression_inference-0.0.2-py3-none-any.whl
 ```
 
 ### Import to Project
@@ -34,13 +34,13 @@ pip install ./dist/ordinary_least_squares-0.0.1-py3-none-any.whl
 Import all utilities:
 
 ```python
-from ordinary_least_squares import *
+from py_regression_inference import *
 ```
 
 Import select utilities:
 
 ```python
-from ordinary_least_squares import LinearRegressionOLS, LogisticRegression, summary
+from py_regression_inference import LinearRegressionOLS, LogisticRegression, summary
 ```
 
 ### Documentation
