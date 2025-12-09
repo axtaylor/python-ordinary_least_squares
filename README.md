@@ -139,7 +139,7 @@ The inference table can be converted to a `pd.DataFrame` object.
 pd.DataFrame(model.inference_table())
 ```
 
-![](https://github.com/axtaylor/python-ordinary_least_squares/tree/main/static/3.png)
+![](./static/3.png)
 
 ```
 [Out]: [{'feature': 'const',
@@ -207,7 +207,7 @@ predictions = pd.concat([pd.DataFrame(model.predict(i, return_table=True)) for i
 predictions
 ```
 
-![](https://github.com/axtaylor/python-ordinary_least_squares/tree/main/static/1.png)
+![](./static/1.png)
 
 **Predictions on a Logistic Regression Model**
 
@@ -222,7 +222,7 @@ predictions = pd.concat([pd.DataFrame(model.predict(test_set, return_table=True)
 predictions
 ```
 
-![](https://github.com/axtaylor/python-ordinary_least_squares/tree/main/static/2.png)
+![](./static/2.png)
 
 
 ### Variance Inflation Factor
