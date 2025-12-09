@@ -85,7 +85,7 @@ class Model(ABC):
 
 
 @dataclass
-class LinearRegressionOLS(Model):
+class LinearRegression(Model):
 
     xtx_inv: np.ndarray = field(default=None, repr=False)
     rss: float = None

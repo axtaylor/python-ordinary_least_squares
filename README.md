@@ -1,56 +1,40 @@
-# python3-py_regression_inference
+# regression-inference
 
-### About
+![PyPI version](https://img.shields.io/pypi/v/regression-inference)
+![License](https://img.shields.io/github/license/axtaylor/python-ordinary_least_squares?color)
 
-Python packaged designed for advanced inference using MLE or OLS.
-
-
-
-### Build and Install the Package
-
-
-Install the `build` prerequisite:
+[https://pypi.org/project/regression-inference/](https://pypi.org/project/regression-inference/)
 
 ```
-requires = ["hatchling >= 1.26"]
-build-backend = "hatchling.build"
+pip install regression-inference
 ```
 
-Build as a package from the source directory with your desired package manager:
+Python packaged designed for inference workflows using MLE and OLS.
 
-```bash
-git clone https://github.com/axtaylor/python-ordinary_least_squares.git
 
-cd ./python-ordinary_least_squares
-
-python -m build
-
-pip install ./dist/py_regression_inference-0.0.2-py3-none-any.whl
-```
-
-### Import to Project
+### Usage
 
 
 Import all utilities:
 
 ```python
-from py_regression_inference import *
+from regression_inference import *
 ```
 
 Import select utilities:
 
 ```python
-from py_regression_inference import LinearRegressionOLS, LogisticRegression, summary
+from regression_inference import LinearRegression, LogisticRegression, summary
 ```
 
 ### Documentation
 
-Jupyter Notebooks are provided to serve as example usages for the Linear and Logistic models.
+See the provided notebooks for example workflows.
 
 ```
-/tests/linear_regression_example.ipynb
+/tests/notebooks/linear_regression_example.ipynb
 
-/tests/logit_regression_example.ipynb
+/tests/notebooks/logit_regression_example.ipynb
 ```
 
 ### Output Example
@@ -139,8 +123,6 @@ The inference table can be converted to a `pd.DataFrame` object.
 pd.DataFrame(model.inference_table())
 ```
 
-![](./static/3.png)
-
 ```
 [Out]: [{'feature': 'const',
          'coefficient': np.float64(7.3256),
@@ -171,6 +153,8 @@ pd.DataFrame(model.inference_table())
          'ci_low_0.05': np.float64(0.016),
          'ci_high_0.05': np.float64(0.033)}]
 ```
+
+![](./static/3.png)
 
 
 ### Predictions

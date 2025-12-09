@@ -3,12 +3,12 @@ requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "py_regression_inference"
-version = "0.0.2"
+name = "regression-inference"
+version = "1.0.1"
 authors = [
   { name="axtaylor", email="lucasataylor.dev@gmail.com" },
 ]
-description = "OLS and MLE regression inference package for Python"
+description = "OLS and MLE regression inference for Python"
 readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
