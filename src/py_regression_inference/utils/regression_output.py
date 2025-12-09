@@ -5,20 +5,23 @@ def summary(*args):
         20,
         list(args)
     )
-
     for i, model in enumerate(models):
         if model.theta is None:
             raise ValueError(f"Error: Model {i+1} is not fitted.")
+    
+    if len(set(m.model_type for m in models)) > 1:
+        raise ValueError("Error: Cannot stack different model types.")
 
     format_length = col_span + (len(models)*col_width)
+
     header = (
         f"\n{'='*format_length}\n"
-        f"{"OLS Regression Results" if model.model_type == "linear" else "Logistic Regression Results"}\n"
+        f"{"OLS Regression Results" if models[0].model_type == "linear" else "Logistic Regression Results"}\n"
         f"{'-'*format_length}\n"
         f"{'Dependent:':<{col_span}}" + "".join(f"{m.target:>{col_width}}" for m in models) + "\n"
         f"{'-'*format_length}\n"
     )
-
+    
     all_features = []
     for model in models:
         for feature in model.feature_names:
