@@ -1,47 +1,22 @@
-# python3-ordinary_least_squares
+# python3-py_regression_inference
 
 ### About
 
-Python packaged designed for advanced OLS inference.
+Python packaged designed for advanced inference using MLE or OLS.
 
 
-### Example Output
-
-
-```
-==================================================
-OLS Regression Results
-==================================================
-Dependent:                     educ      Education
---------------------------------------------------
- 
-const                     7.3256***      7.3256***
-                           (0.3684)       (0.3684)
- 
-paeduc                    0.2144***      0.2144***
-                           (0.0241)       (0.0241)
- 
-maeduc                    0.2569***      0.2569***
-                           (0.0271)       (0.0271)
- 
-age                       0.0241***      0.0241***
-                           (0.0043)       (0.0043)
-
---------------------------------------------------
-R-squared                     0.276          0.276
-Adjusted R-squared            0.274          0.274
-F Statistic                 177.548        177.548
-Observations               1402.000       1402.000
-Log Likelihood            -3359.107      -3359.107
-AIC                        6726.213       6726.213
-BIC                        6747.196       6747.196
-==================================================
-*p<0.1; **p<0.05; ***p<0.01
-```
 
 ### Build and Install the Package
 
-Build as a package from the source directory:
+
+Install the `build` prerequisite:
+
+```
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+```
+
+Build as a package from the source directory with your desired package manager:
 
 ```bash
 git clone https://github.com/axtaylor/python-ordinary_least_squares.git
@@ -53,103 +28,215 @@ python -m build
 pip install ./dist/ordinary_least_squares-0.0.1-py3-none-any.whl
 ```
 
-### Importing the Package
+### Import to Project
+
+
+Import all utilities:
 
 ```python
 from ordinary_least_squares import *
 ```
 
-```python
-import ordinary_least_squares as ols
-```
+Import select utilities:
 
 ```python
-from ordinary_least_squares import LinearRegressionOLS, summary
+from ordinary_least_squares import LinearRegressionOLS, LogisticRegression, summary
 ```
 
+### Documentation
 
-
-
-## Basic Usage
-
-
-### Model Fitting
-
-```python
-LinearRegressionOLS().fit(
-                        X=X,
-                        y=y,
-                        feature_names=None,
-                        target_name=None,
-                        alpha=0.05
-                        )
-```
-
-`X`: `np.ndarray` or `pd.DataFrame` consisting of features and a column of ones for the intercept.
-
-`y`: `np.ndarray` or `pd.Series` consisting of a target.
-
-`feature_names`: List of strings consisting of names for the features. Useful when fitting models on `np.ndarray` objects. Do not include a name for the constant column. Enter names in order of columns in the array.
-
-`target_name`: String consisting of a name for the target data. Useful when fitting models on `np.ndarray` objects. 
-
-`alpha = 0.05`: Confidence interval for the model's initial predictions.
-
-
-
-
-
-
----
-### Model Predicting
-
-```python
-model.predict(X, alpha=0.05, return_table=False)
-```
-
-`X`: `np.ndarray` consisting of values for the models features,
-in order. Do not include the intercept.
-
-`alpha = 0.05`: Confidence interval for the model's prediction.
-
-`return_table = False`: Returns a prediction as `np.float64()` when false, else returns a dictionary containing the prediction, standard error, t-statistic, p-value, and confidence ranges.
-
-
-
-
-
----
-### Advanced Usage Documentation
-
-See the Jupyter notebook for advanced use cases.
-
-- Hypothesis testing on predictions using numeric values or feature arrays.
-- Generating tables predicting the target value over a range of X values.
-- Generating a table of the first derivative for a set of discrete predictions.
-- Stacking multiple regression outputs.
-- Testing models for multicolinearity.
-- Applying robust standard errors.
+Jupyter Notebooks are provided to serve as example usages for the Linear and Logistic models.
 
 ```
 /tests/linear_regression_example.ipynb
+
+/tests/logit_regression_example.ipynb
+```
+
+### Output Example
+
+Stacked outputs using summary
+
+```py
+print(summary(model, robust_model))
+```
+
+```
+==================================================
+OLS Regression Results
+--------------------------------------------------
+Dependent:                     educ    robust educ
+--------------------------------------------------
+ 
+const                     7.3256***      7.3256***
+                           (0.3684)       (0.4345)
+ 
+paeduc                    0.2144***      0.2144***
+                           (0.0241)       (0.0236)
+ 
+maeduc                    0.2569***      0.2569***
+                           (0.0271)       (0.0294)
+ 
+age                       0.0241***      0.0241***
+                           (0.0043)       (0.0042)
+
+--------------------------------------------------
+R-squared                     0.276          0.276
+Adjusted R-squared            0.274          0.274
+F Statistic                 177.548        177.548
+Observations               1402.000       1402.000
+Log Likelihood            -3359.107      -3359.107
+AIC                        6726.213       6726.213
+BIC                        6747.196       6747.196
+TSS                       13663.270      13663.270
+RSS                        9893.727       9893.727
+ESS                        3769.543       3769.543
+MSE                           7.077          7.077
+==================================================
+*p<0.1; **p<0.05; ***p<0.01
+```
+
+### Logistic Regression Summary
+
+```
+===================================
+Logistic Regression Results
+-----------------------------------
+Dependent:                    GRADE
+-----------------------------------
+ 
+const                    -13.0213**
+                           (5.1976)
+ 
+GPA                        2.8261**
+                           (1.2675)
+ 
+TUCE                         0.0952
+                           (0.1179)
+ 
+PSI                        2.3787**
+                           (0.9644)
+
+-----------------------------------
+Pseudo R-squared              0.374
+LR Statistic                 15.404
+Observations                 32.000
+Log Likelihood              -12.890
+Deviance                     25.779
+Null Deviance                41.183
+AIC                          33.779
+BIC                          39.642
+===================================
+*p<0.1; **p<0.05; ***p<0.01
+```
+
+### Coefficient Inference Table
+
+Generate an inference table on fitted model objects. 
+
+The inference table can be converted to a `pd.DataFrame` object.
+```py
+pd.DataFrame(model.inference_table())
+```
+
+![](https://github.com/axtaylor/python-ordinary_least_squares/tree/main/static/3.png)
+
+```
+[Out]: [{'feature': 'const',
+         'coefficient': np.float64(7.3256),
+         'std_error': np.float64(0.3684),
+         't_statistic': np.float64(19.887),
+         'P>|t|': '0.000',
+         'ci_low_0.05': np.float64(6.603),
+         'ci_high_0.05': np.float64(8.048)},
+        {'feature': 'paeduc',
+         'coefficient': np.float64(0.2144),
+         'std_error': np.float64(0.0241),
+         't_statistic': np.float64(8.8796),
+         'P>|t|': '0.000',
+         'ci_low_0.05': np.float64(0.167),
+         'ci_high_0.05': np.float64(0.262)},
+        {'feature': 'maeduc',
+         'coefficient': np.float64(0.2569),
+         'std_error': np.float64(0.0271),
+         't_statistic': np.float64(9.4725),
+         'P>|t|': '0.000',
+         'ci_low_0.05': np.float64(0.204),
+         'ci_high_0.05': np.float64(0.31)},
+        {'feature': 'age',
+         'coefficient': np.float64(0.0241),
+         'std_error': np.float64(0.0043),
+         't_statistic': np.float64(5.5789),
+         'P>|t|': '0.000',
+         'ci_low_0.05': np.float64(0.016),
+         'ci_high_0.05': np.float64(0.033)}]
 ```
 
 
+### Predictions
 
-
-
-
-
----
-### Citation
-
-If you use this package in your research, please cite:
-```bibtex
-@software{python-ordinary_least_squares,
-  author = {Lucas Taylor},
-  title = {ordinary_least_squares: OLS Regression for Python},
-  year = {2025},
-  url = {https://github.com/axtaylor/ordinary_least_squares}
-}
+Extract the order of feature names using `feature_names[:1]`
+```
+model.feature_names[1:]
+```
+```
+[Out]: Index(['paeduc', 'maeduc', 'age'], dtype='object')
 ```
 
+Predict in the order of the feature names.
+```
+model.predict(np.array([[0, 0, 0], ]))
+```
+```
+[Out]: array([7.32564767])
+```
+
+### Advanced Predictions
+
+Use iterations to make predictions over a discrete range of values
+
+Use `return_table = True` to generate a dictionary of prediction statistics
+instead of an array of values.
+
+```py
+prediction_set = [
+    (np.array([[i, X['maeduc'].mean(), X['age'].mean()],]))
+    for i in range(int(X['paeduc'].min()), int(X['paeduc'].max())+1)
+    ] 
+predictions = pd.concat([pd.DataFrame(model.predict(i, return_table=True)) for i in prediction_set], ignore_index=True)
+predictions
+```
+
+![](https://github.com/axtaylor/python-ordinary_least_squares/tree/main/static/1.png)
+
+**Predictions on a Logistic Regression Model**
+
+```py
+prediction_set = [
+    np.array([[2.66, 20.0, 0.0]]),
+    np.array([[2.89, 22.0, 0.0]]),
+    np.array([[3.28, 24.0, 0.0]]),
+    np.array([[2.92, 12.0, 0.0]]),
+]
+predictions = pd.concat([pd.DataFrame(model.predict(test_set, return_table=True)) for test_set in prediction_set], ignore_index=True)
+predictions
+```
+
+![](https://github.com/axtaylor/python-ordinary_least_squares/tree/main/static/2.png)
+
+
+### Variance Inflation Factor
+
+Variance Inflation Factor can be generated for the model's features.
+
+```py
+model.variance_inflation_factor()
+```
+
+Dictionary output can be converted into a `pd.DataFrame` object
+
+
+```
+{'feature': Index(['paeduc', 'maeduc', 'age'], dtype='object'),
+ 'VIF': array([2.0233, 2.0285, 1.0971])}
+```

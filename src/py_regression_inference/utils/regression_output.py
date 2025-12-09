@@ -13,7 +13,7 @@ def summary(*args):
     format_length = col_span + (len(models)*col_width)
     header = (
         f"\n{'='*format_length}\n"
-        "OLS Regression Results\n"
+        f"{"OLS Regression Results" if model.model_type == "linear" else "Logistic Regression Results"}\n"
         f"{'-'*format_length}\n"
         f"{'Dependent:':<{col_span}}" + "".join(f"{m.target:>{col_width}}" for m in models) + "\n"
         f"{'-'*format_length}\n"
@@ -29,7 +29,6 @@ def summary(*args):
     for feature in all_features:
         coef_row = f"{feature:<{col_span}}"
         se_row = " " * col_span
-        #t_row = " " * col_span
 
         for model in models:
             if feature in model.feature_names:
@@ -37,7 +36,6 @@ def summary(*args):
                 coef = model.theta[feature_index]
                 se = model.std_error_coefficient[feature_index]
                 p = model.p_value_coefficient[feature_index]
-                #t = model.t_stat_coefficient[feature_index]
                 stars = (
                     "***" if p < 0.01 else
                     "**" if p < 0.05 else
@@ -54,29 +52,42 @@ def summary(*args):
                     if abs(se) > 0.0001
                     else f"({se:.2e})"
                 )
-                #t_fmt = f"{t:.4f}" if abs(t) > 0.0001 else f"({t:.2e})"
                 coef_row += f"{coef_fmt:>{col_width}}"
                 se_row += f"{se_fmt:>{col_width}}"
-                #t_row += f"{t_fmt:>{col_width}}"
             else:
                 coef_row += " " * col_width
                 se_row += " " * col_width
-                #t_row += " " * col_width
 
         rows.append(" ")
         rows.append(coef_row)
         rows.append(se_row)
-        #rows.append(t_row)
 
-    stats_lines = [
-        ("R-squared", "r_squared"),
-        ("Adjusted R-squared", "r_squared_adjusted"),
-        ("F Statistic", "f_statistic"),
-        ("Observations", lambda m: m.X.shape[0]),
-        ("Log Likelihood", "log_likelihood"),
-        ("AIC", "aic"),
-        ("BIC", "bic")
-    ]
+    if model.model_type == "linear":
+        stats_lines = [
+            ("R-squared", "r_squared"),
+            ("Adjusted R-squared", "r_squared_adjusted"),
+            ("F Statistic", "f_statistic"),
+            ("Observations", lambda m: m.X.shape[0]),
+            ("Log Likelihood", "log_likelihood"),
+            ("AIC", "aic"),
+            ("BIC", "bic"),
+            ("TSS", "tss"),
+            ("RSS", "rss"),
+            ("ESS", "ess"),
+            ("MSE", "mse"),
+        ]
+        
+    if model.model_type == "logit":
+         stats_lines = [
+            ("Pseudo R-squared", "pseudo_r_squared"),
+            ("LR Statistic", "lr_statistic"),
+            ("Observations", lambda m: m.X.shape[0]),
+            ("Log Likelihood", "log_likelihood"),
+            ("Deviance", "deviance"),
+            ("Null Deviance", "null_deviance"),
+            ("AIC", "aic"),
+            ("BIC", "bic")
+        ]
 
     stats = f"\n{'-'*format_length}\n"
 

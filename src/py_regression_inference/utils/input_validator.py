@@ -1,6 +1,6 @@
 import numpy as np 
 
-def validate(X: np.ndarray, y: np.ndarray, alpha: float):
+def validate(X: np.ndarray, y: np.ndarray, alpha: float, model_type: str):
 
     if X is None or y is None:
         raise ValueError("X and y cannot be None")
@@ -40,6 +40,30 @@ def validate(X: np.ndarray, y: np.ndarray, alpha: float):
     
     if np.any(~np.isfinite(y_array)):
         raise ValueError("y contains NaN or infinite values")
+    
+    if model_type == 'logit':
+        unique_values = np.unique(y_array)
+        
+        if not np.all(np.isin(y_array, [0, 1])):
+            raise ValueError(
+                f"For logistic regression, y must contain only 0 and 1. "
+                f"Found unique values: {unique_values}"
+        )
+        if len(unique_values) < 2:
+            raise ValueError(
+                f"y must have at least 2 classes for logistic regression. "
+                f"Found only: {unique_values}"
+        )
+        class_0_count = np.sum(y_array == 0)
+        class_1_count = np.sum(y_array == 1)
+        if class_0_count < 2 or class_1_count < 2:
+            import warnings
+            warnings.warn(
+                f"Very imbalanced classes detected: "
+                f"class 0: {class_0_count}, class 1: {class_1_count}. "
+                f"Model may fail to converge or produce unreliable estimates.",
+                UserWarning
+        )
         
     return (
         X_array,
