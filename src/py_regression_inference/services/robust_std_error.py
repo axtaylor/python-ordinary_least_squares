@@ -10,6 +10,7 @@ def robust_se(model, apply, type):
     model_type = model.model_type
 
     if model_type == "linear":
+
         XTX_INV = model.xtx_inv
         DF = model.degrees_freedom
         h = np.sum(X @ XTX_INV * X, axis=1)
@@ -18,11 +19,13 @@ def robust_se(model, apply, type):
         sr = model.residuals.reshape(-1, 1).flatten()**2
 
     if model_type == "logit":
+
         XTX_INV = model.xtWx_inv
         DF = model.degrees_freedom
         h = np.sum(X @ XTX_INV * X, axis=1)
         stat_dist = norm
         stat_name = 'z'
+
         # Response residuals != deviance residuals
         z = X @ THETA
         mu = 1 / (1 + np.exp(-z))
@@ -36,11 +39,12 @@ def robust_se(model, apply, type):
         "HC3": lambda sr, n_obs, k_regressors, leverage: sr / ((1 - leverage) ** 2),
     }
 
+    # Compute only the diagonal matrix
     try:
         omega_diagonal = HC_[type](sr, n, k, h)
-        X_omega = X * np.sqrt(omega_diagonal)[:, None]                   # Multiply each X row by X*(diagonal weights)^(0.5)
-        robust_cov = XTX_INV @ (X_omega.T @ X_omega) @ XTX_INV             # Sandwich
-        robust_se = np.sqrt(np.diag(robust_cov))                              # Diagonal extract the var-cov
+        X_omega = X * np.sqrt(omega_diagonal)[:, None]           # Multiply each X row by X*(diagonal weights)^(0.5)
+        robust_cov = XTX_INV @ (X_omega.T @ X_omega) @ XTX_INV   # Sandwich
+        robust_se = np.sqrt(np.diag(robust_cov))                 # Diagonal extract the var-cov
         robust_stat = THETA / robust_se
 
         if model_type == "linear":
@@ -51,13 +55,10 @@ def robust_se(model, apply, type):
             robust_p = 2 * (1 - stat_dist.cdf(abs(robust_stat)))
             t_crit = stat_dist.ppf(1 - ALPHA/2)
 
-
         robust_ci_low = THETA - t_crit * robust_se
         robust_ci_high = THETA + t_crit * robust_se
 
         if apply:
-            model.variance_coefficient = robust_cov
-            model.std_error_coefficient = robust_se
 
             if model_type == "linear":
                 model.t_stat_coefficient = robust_stat
@@ -65,6 +66,8 @@ def robust_se(model, apply, type):
             if model_type == "logit":
                 model.z_stat_coefficient = robust_stat
 
+            model.variance_coefficient = robust_cov
+            model.std_error_coefficient = robust_se
             model.p_value_coefficient = robust_p
             model.ci_low = robust_ci_low
             model.ci_high = robust_ci_high

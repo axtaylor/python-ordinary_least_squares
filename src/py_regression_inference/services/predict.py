@@ -9,9 +9,9 @@ def predict(model, X, alpha, return_table):
         if model.model_type == "logit":
             z = np.asarray(X, dtype=float) @ model.coefficients + model.intercept
             return 1 / (1 + np.exp(-z))
-    
 
     if model.model_type == "linear":
+
         prediction_features = {j: f'{i.item():.2f}' for j, i in zip(model.feature_names[1:], X[0])}
         X = np.hstack([np.ones((X.shape[0], 1)), X])
         prediction = X @ model.theta
@@ -32,6 +32,7 @@ def predict(model, X, alpha, return_table):
         })
     
     if model.model_type == "logit":
+
         prediction_features = {j: f'{i.item():.2f}' for j, i in zip(model.feature_names[1:], X[0])}
         X = np.hstack([np.ones((X.shape[0], 1)), X])
         z = X @ model.theta
