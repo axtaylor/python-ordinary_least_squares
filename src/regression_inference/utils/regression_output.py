@@ -16,7 +16,7 @@ def summary(*args):
 
     header = (
         f"\n{'='*format_length}\n"
-        f"{"OLS Regression Results" if models[0].model_type == "linear" else "Logistic Regression Results"}\n"
+        f"{"OLS Regression Results" if models[0].model_type == "ols" else "Logistic Regression Results"}\n"
         f"{'-'*format_length}\n"
         f"{'Dependent:':<{col_span}}" + "".join(f"{m.target:>{col_width}}" for m in models) + "\n"
         f"{'-'*format_length}\n"
@@ -65,7 +65,7 @@ def summary(*args):
         rows.append(coef_row)
         rows.append(se_row)
 
-    if model.model_type == "linear":
+    if model.model_type == "ols":
         stats_lines = [
             ("R-squared", "r_squared"),
             ("Adjusted R-squared", "r_squared_adjusted"),
@@ -80,7 +80,7 @@ def summary(*args):
             ("MSE", "mse"),
         ]
         
-    if model.model_type == "logit":
+    if model.model_type == "mle":
          stats_lines = [
             ("Pseudo R-squared", "pseudo_r_squared"),
             ("LR Statistic", "lr_statistic"),

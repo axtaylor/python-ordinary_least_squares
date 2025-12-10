@@ -1,37 +1,36 @@
 import numpy as np
 from scipy.stats import t as t_dist, norm
 
-def robust_se(model, apply, type):
+def _robust_se(model, type, apply=False):
 
+    model_type = model.model_type
     X = model.X
     THETA = model.theta
     ALPHA = model.alpha
+    DF = model.degrees_freedom
     n, k = X.shape
-    model_type = model.model_type
 
-    if model_type == "linear":
+    if model_type == "ols":
+        stat_dist, stat_name = (t_dist, 't')
 
         XTX_INV = model.xtx_inv
-        DF = model.degrees_freedom
         h = np.sum(X @ XTX_INV * X, axis=1)
-        stat_dist = t_dist
-        stat_name = 't'
         sr = model.residuals.reshape(-1, 1).flatten()**2
 
-    if model_type == "logit":
-
-        XTX_INV = model.xtWx_inv
-        DF = model.degrees_freedom
-        h = np.sum(X @ XTX_INV * X, axis=1)
-        stat_dist = norm
-        stat_name = 'z'
-
-        # Response residuals != deviance residuals
+    if model_type == "mle":
+        stat_dist, stat_name = (norm, 'z')
+       
         z = X @ THETA
         mu = 1 / (1 + np.exp(-z))
+        W = mu * (1 - mu) 
+
+        XTX_INV = model.xtWx_inv
+        h = np.sum(X @ XTX_INV * X, axis=1) * W
+
+        # Response residuals != deviance residuals
         response_residuals = model.y - mu
         sr = response_residuals**2
-
+        
     HC_ = {
         "HC0": lambda sr, n_obs, k_regressors, leverage: sr,
         "HC1": lambda sr, n_obs, k_regressors, leverage: (n_obs / (n_obs - k_regressors)) * sr,
@@ -47,11 +46,11 @@ def robust_se(model, apply, type):
         robust_se = np.sqrt(np.diag(robust_cov))                 # Diagonal extract the var-cov
         robust_stat = THETA / robust_se
 
-        if model_type == "linear":
+        if model_type == "ols":
             robust_p = 2 * (1 - stat_dist.cdf(abs(robust_stat), DF))
             t_crit = stat_dist.ppf(1 - ALPHA/2, DF)
 
-        if model_type == "logit":
+        if model_type == "mle":
             robust_p = 2 * (1 - stat_dist.cdf(abs(robust_stat)))
             t_crit = stat_dist.ppf(1 - ALPHA/2)
 
@@ -59,11 +58,9 @@ def robust_se(model, apply, type):
         robust_ci_high = THETA + t_crit * robust_se
 
         if apply:
-
-            if model_type == "linear":
+            if model_type == "ols":
                 model.t_stat_coefficient = robust_stat
-
-            if model_type == "logit":
+            if model_type == "mle":
                 model.z_stat_coefficient = robust_stat
 
             model.variance_coefficient = robust_cov

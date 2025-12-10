@@ -1,6 +1,6 @@
 import numpy as np
 
-def variance_inflation_factor(model):
+def _variance_inflation_factor(model):
 
     X = model.X[:,1:]
     n_features, vif = X.shape[1], []

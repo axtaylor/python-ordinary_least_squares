@@ -1,41 +1,56 @@
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Union, ClassVar, Optional
 from abc import ABC, abstractmethod
-
-from .services.variance_inflation_factor import variance_inflation_factor
-from .services.robust_std_error import robust_se
-from .services.predict import predict
-from .services.fit import fit
-from .utils.inference_table import inference_table
+from .services.variance_inflation_factor import _variance_inflation_factor
+from .services.robust_std_error import _robust_se
+from .services.predict import _predict
+from .services.fit import _fit
+from .utils.inference_table import _inference_table
 from .utils.regression_output import summary
-
 import numpy as np
 
 @dataclass
 class Model(ABC):
+    feature_names:          list[str] = field(default_factory=list)
+    target:                 Optional[str] = None
+    X:                      Optional[np.ndarray] = field(default=None, repr=False)
+    y:                      Optional[np.ndarray] = field(default=None, repr=False)
+    alpha:                  Optional[float] = None
+    theta:                  Optional[np.ndarray] = field(default=None)
+    coefficients:           Optional[np.ndarray] = field(default=None)
+    intercept:              Optional[float] = None
+    degrees_freedom:        Optional[int] = None
+    residuals:              Optional[np.ndarray] = field(default=None, repr=False)
+    log_likelihood:         Optional[float] = None
+    aic:                    Optional[float] = None
+    bic:                    Optional[float] = None
+    p_value_coefficient:    Optional[np.ndarray] = field(default=None)
+    variance_coefficient:   Optional[np.ndarray] = field(default=None)
+    std_error_coefficient:  Optional[np.ndarray] = field(default=None)
+    ci_low:                 Optional[np.ndarray] = field(default=None)
+    ci_high:                Optional[np.ndarray] = field(default=None)
 
-    model_type: str = field(init=False) 
-    feature_names: list = field(default_factory=list)
-    target: str = None
+    frozen:                 bool = field(default=False, repr=False)
+    MUTABLE_AFTER_FIT: ClassVar[frozenset[str]] = frozenset({
+        "feature_names", "target", "frozen"
+    })
 
-    X: np.ndarray = field(default=None, repr=False)
-    y: np.ndarray = field(default=None, repr=False)
+    def __str__(self) -> str:
+        self._model_is_fitted()
+        return summary(self)
 
-    alpha: float = None
-    theta: np.ndarray = field(default=None)
-    coefficients: np.ndarray = field(default=None)
-    intercept: float = None
-    degrees_freedom: int = None
-    residuals: np.ndarray = field(default=None, repr=False)
-    
-    log_likelihood: float = None
-    aic: float = None
-    bic: float = None
-
-    variance_coefficient: np.ndarray = field(default=None)
-    std_error_coefficient: np.ndarray = field(default=None)
-    ci_low: np.ndarray = field(default=None)
-    ci_high: np.ndarray = field(default=None)
+    def __setattr__(self, name: str, value) -> None:
+        if getattr(self, "frozen", False) and name not in self.MUTABLE_AFTER_FIT:
+            raise AttributeError(
+                f"\nCannot modify '{name}' after model is fitted. "
+                f"Model attributes are read-only once fit() is called."
+            )
+        super().__setattr__(name, value)
+        
+    @property
+    @abstractmethod
+    def model_type(self) -> str:
+        pass
 
     @property
     def is_fitted(self) -> bool:
@@ -44,21 +59,25 @@ class Model(ABC):
     def _model_is_fitted(self) -> None:
         if not self.is_fitted:
             raise ValueError("Model is not fitted. Call 'fit' with arguments before using this method.")
-    
-    def __str__(self) -> str:
-        self._model_is_fitted()
-        return summary(self)
+        
+    def _freeze(self) -> None:
+        self.frozen = True
+
+    def _post_fit_processing(self, cov_type: Optional[str]) -> None:
+        if cov_type:
+            _robust_se(self, type=cov_type, apply=True)
+        self._freeze()
     
     @abstractmethod
     def fit(
         self,
-        X:              np.ndarray,
-        y:              np.ndarray,
-        feature_names:  list[str] = None,
-        target_name:    str       = None,
-        alpha:          float     = 0.05,
+        X:             np.ndarray,
+        y:             np.ndarray,
+        feature_names: Optional[list[str]] = None,
+        target_name:   Optional[str]       = None,
+        cov_type:      Optional[str]       = None,
+        alpha:         float               = 0.05,
     ) -> 'Model':
-        
         pass
 
     def predict(
@@ -67,71 +86,81 @@ class Model(ABC):
             alpha:          float = 0.05,
             return_table:   bool  = False,
     ) -> Union[np.ndarray, dict]:
-
+        
         self._model_is_fitted()
-        return predict(self, X, alpha, return_table)
+        return _predict(self, X, alpha, return_table)
 
-    def robust_se(self, apply: bool = False, type: str = "HC3") -> dict:
+    def robust_se(self, type: str = "HC3") -> dict:
         self._model_is_fitted()
-        return robust_se(self, apply, type)
+        return _robust_se(self, type, False)
 
-    def variance_inflation_factor(self):
+    def variance_inflation_factor(self) -> dict:
         self._model_is_fitted()
-        return variance_inflation_factor(self)
+        return _variance_inflation_factor(self)
     
-    def inference_table(self):
+    def inference_table(self) -> dict:
         self._model_is_fitted()
-        return inference_table(self)
+        return _inference_table(self)
 
 
 @dataclass
 class LinearRegression(Model):
 
-    xtx_inv: np.ndarray = field(default=None, repr=False)
-    rss: float = None
-    tss: float = None
-    ess: float = None
-    mse: float = None
-    rmse: float = None
-    f_statistic: float = None
-    r_squared: float = None
-    r_squared_adjusted: float = None
-    t_stat_coefficient: np.ndarray = field(default=None)
-    p_value_coefficient: np.ndarray = field(default=None)
+    @property
+    def model_type(self) -> str:
+        return "ols"
+
+    xtx_inv:            Optional[np.ndarray] = field(default=None, repr=False)
+    rss:                Optional[float] = None
+    tss:                Optional[float] = None
+    ess:                Optional[float] = None
+    mse:                Optional[float] = None
+    rmse:               Optional[float] = None
+    f_statistic:        Optional[float] = None
+    r_squared:          Optional[float] = None
+    r_squared_adjusted: Optional[float] = None
+    t_stat_coefficient: Optional[np.ndarray] = field(default=None)
 
     def fit(
         self,
-        X:             np.ndarray,
-        y:             np.ndarray,
-        feature_names: list[str] = None,
-        target_name:   str       = None,
-        alpha:         float     = 0.05,
-    ) -> 'Model':
+        X:              np.ndarray,
+        y:              np.ndarray,
+        feature_names:  Optional[list[str]] = None,
+        target_name:    Optional[str] = None,
+        cov_type:       Optional[str] = None,
+        alpha:          float = 0.05,
+    ) -> 'LinearRegression':
         
-        return fit(self, X, y, feature_names, target_name, alpha)
-        
-
+        _fit(self, X, y, feature_names, target_name, alpha)
+        self._post_fit_processing(cov_type)
+        return self
+    
 @dataclass
 class LogisticRegression(Model):
 
-    xtWx_inv: np.ndarray = field(default=None, repr=False)
-    deviance: float = None
-    null_deviance: float = None
-    pseudo_r_squared: float = None
-    lr_statistic: float = None
-    z_stat_coefficient: np.ndarray = field(default=None)
-    p_value_coefficient: np.ndarray = field(default=None)
+    @property
+    def model_type(self) -> str:
+        return "mle"
+
+    xtWx_inv:           Optional[np.ndarray] = field(default=None, repr=False)
+    deviance:           Optional[float] = None
+    null_deviance:      Optional[float] = None
+    pseudo_r_squared:   Optional[float] = None
+    lr_statistic:       Optional[float] = None
+    z_stat_coefficient: Optional[np.ndarray] = field(default=None)
 
     def fit(
         self,
-        X:             np.ndarray,
-        y:             np.ndarray,
-        feature_names: list[str] = None,
-        target_name:   str       = None,
-        alpha:         float     = 0.05,
-        max_iter:      int       = 100,
-        tol:           float     = 1e-8,
-    ) -> 'Model':
-
-        return fit(self, X, y, feature_names, target_name, alpha, max_iter, tol)
-    
+        X:              np.ndarray,
+        y:              np.ndarray,
+        feature_names:  Optional[list[str]] = None,
+        target_name:    Optional[str] = None,
+        cov_type:       Optional[str] = None,
+        alpha:          float = 0.05,
+        max_iter:       int = 100,
+        tol:            float = 1e-8,
+    ) -> 'LogisticRegression':
+        
+        _fit(self, X, y, feature_names, target_name, alpha, max_iter, tol)
+        self._post_fit_processing(cov_type)
+        return self

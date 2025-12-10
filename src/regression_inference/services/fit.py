@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 from scipy.stats import t as t_dist, norm
 
-def fit(
+def _fit(
         model,
         X:              np.ndarray,
         y:              np.ndarray,
@@ -11,15 +11,8 @@ def fit(
         target_name:    str,
         alpha:          float,
         max_iter:       int = 100,
-        tol:            float =1e-8,
+        tol:            float = 1e-8,
     ):
-
-    model.model_type = (
-        "linear" if hasattr(model, 'xtx_inv')
-        else "logit" if hasattr(model, "xtWx_inv")
-        else None
-    )
-
     X_array, y_array = validate(X, y, alpha, model.model_type)
 
     # Names override -> Pandas column names -> Generic in place names.
@@ -38,7 +31,7 @@ def fit(
     model.X, model.y = X_array, y_array
     model.degrees_freedom = model.X.shape[0]-model.X.shape[1]
 
-    if model.model_type == "linear":
+    if model.model_type == "ols":
         
         # Cholesky decomposition fit
         xtx = model.X.T @ model.X
@@ -102,9 +95,8 @@ def fit(
         model.ci_low = model.theta - t_crit * model.std_error_coefficient
         model.ci_high = model.theta + t_crit * model.std_error_coefficient
 
-        return model
     
-    if model.model_type == "logit":
+    if model.model_type == "mle":
 
         # Newton-Raphson IRLS for Maximum Likelihood Estimation
         model.theta = np.zeros(model.X.shape[1])
@@ -217,4 +209,4 @@ def fit(
         model.ci_low = model.theta - z_crit * model.std_error_coefficient
         model.ci_high = model.theta + z_crit * model.std_error_coefficient
 
-        return model
+    return model

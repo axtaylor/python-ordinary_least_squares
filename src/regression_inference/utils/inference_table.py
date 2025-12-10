@@ -1,14 +1,15 @@
 import numpy as np
+from typing import List
 
-def inference_table(model):
+def _inference_table(model) -> List[dict[str: float]]:
 
-    if model.model_type == "linear":
-        stat = "t_statistic"
-        model_stat = model.t_stat_coefficient
-    if model.model_type == "logit":
-        stat = "z_statistic"
-        model_stat = model.z_stat_coefficient
-
+    stat, model_stat = (
+        ("t_statistic", model.t_stat_coefficient)
+        if model.model_type == "ols" else
+        ("z_statistic", model.z_stat_coefficient)
+        if model.model_type == "mle" else
+        ValueError("Unknown model type")
+    )
     return [
     {
         "feature": feature,

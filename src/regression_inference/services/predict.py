@@ -1,21 +1,26 @@
 import numpy as np    
 from scipy.stats import t as t_dist, norm
 
-def predict(model, X, alpha, return_table):
+def _predict(model, X, alpha, return_table):
+        
+    if not return_table:
+        return (
+            (np.asarray(X, dtype=float) @ model.coefficients + model.intercept)
+            if model.model_type == "ols" else
+            1 / (1 + np.exp(-(np.asarray(X, dtype=float) @ model.coefficients + model.intercept)))
+            if model.model_type == "mle" else
+            ValueError("Unknown model type")
+    )
+    prediction_features = {
+            name: f'{value_at.item():.2f}'
+            for name, value_at in zip(model.feature_names[1:], X[0])
+    }
+    X = np.hstack([np.ones((X.shape[0], 1)), X])
+    prediction = X @ model.theta
+    se_prediction = np.sqrt((X @ model.variance_coefficient @ X.T)).item()
 
-    if return_table == False:
-        if model.model_type == "linear":
-            return (np.asarray(X, dtype=float) @ model.coefficients + model.intercept)
-        if model.model_type == "logit":
-            z = np.asarray(X, dtype=float) @ model.coefficients + model.intercept
-            return 1 / (1 + np.exp(-z))
+    if model.model_type == "ols":
 
-    if model.model_type == "linear":
-
-        prediction_features = {j: f'{i.item():.2f}' for j, i in zip(model.feature_names[1:], X[0])}
-        X = np.hstack([np.ones((X.shape[0], 1)), X])
-        prediction = X @ model.theta
-        se_prediction = np.sqrt((X @ model.variance_coefficient @ X.T)).item()
         t_critical = t_dist.ppf(1 - alpha/2, model.degrees_freedom)
         ci_low, ci_high = (prediction - t_critical * se_prediction), (prediction + t_critical * se_prediction)
         t_stat = prediction / se_prediction
@@ -31,18 +36,14 @@ def predict(model, X, alpha, return_table):
             f"ci_high_{alpha}": [np.round(ci_high.item(), 4)],
         })
     
-    if model.model_type == "logit":
+    if model.model_type == "mle":
 
-        prediction_features = {j: f'{i.item():.2f}' for j, i in zip(model.feature_names[1:], X[0])}
-        X = np.hstack([np.ones((X.shape[0], 1)), X])
-        z = X @ model.theta
-        prediction_prob = 1 / (1 + np.exp(-z))
-        se_prediction = np.sqrt((X @ model.variance_coefficient @ X.T)).item()
+        prediction_prob = 1 / (1 + np.exp(-prediction))
         z_critical = norm.ppf(1 - alpha/2)
-        ci_low_z, ci_high_z = (z - z_critical * se_prediction), (z + z_critical * se_prediction)
+        ci_low_z, ci_high_z = (prediction - z_critical * se_prediction), (prediction + z_critical * se_prediction)
         ci_low_prob = 1 / (1 + np.exp(-ci_low_z))
         ci_high_prob = 1 / (1 + np.exp(-ci_high_z))
-        z_stat = z / se_prediction
+        z_stat = prediction / se_prediction
         p = 2 * (1 - norm.cdf(abs(z_stat)))
 
         return ({
