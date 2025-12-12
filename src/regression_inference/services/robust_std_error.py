@@ -3,6 +3,13 @@ from scipy.stats import t as t_dist, norm
 
 def _robust_se(model, type, apply=False):
 
+    def _sigmoid(z):
+        return np.where(
+            z >= 0,
+            1 / (1 + np.exp(-z)),
+            np.exp(z) / (1 + np.exp(z))
+    )
+
     model_type = model.model_type
     X = model.X
     THETA = model.theta
@@ -18,12 +25,11 @@ def _robust_se(model, type, apply=False):
         sr = model.residuals.reshape(-1, 1).flatten()**2
 
     if model_type == "mle":
+        
         stat_dist, stat_name = (norm, 'z')
-       
         z = X @ THETA
-        mu = 1 / (1 + np.exp(-z))
+        mu = _sigmoid(z)
         W = mu * (1 - mu) 
-
         XTX_INV = model.xtWx_inv
         h = np.sum(X @ XTX_INV * X, axis=1) * W
 
@@ -48,14 +54,14 @@ def _robust_se(model, type, apply=False):
 
         if model_type == "ols":
             robust_p = 2 * (1 - stat_dist.cdf(abs(robust_stat), DF))
-            t_crit = stat_dist.ppf(1 - ALPHA/2, DF)
+            crit = stat_dist.ppf(1 - ALPHA/2, DF)
 
         if model_type == "mle":
             robust_p = 2 * (1 - stat_dist.cdf(abs(robust_stat)))
-            t_crit = stat_dist.ppf(1 - ALPHA/2)
+            crit = stat_dist.ppf(1 - ALPHA/2)
 
-        robust_ci_low = THETA - t_crit * robust_se
-        robust_ci_high = THETA + t_crit * robust_se
+        robust_ci_low = THETA - crit * robust_se
+        robust_ci_high = THETA + crit * robust_se
 
         if apply:
             if model_type == "ols":

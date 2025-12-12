@@ -19,6 +19,7 @@ class Model(ABC):
     theta:                  Optional[np.ndarray] = field(default=None)
     coefficients:           Optional[np.ndarray] = field(default=None)
     intercept:              Optional[float] = None
+    predictions:            Optional[np.ndarray] = field(default=None)
     degrees_freedom:        Optional[int] = None
     residuals:              Optional[np.ndarray] = field(default=None, repr=False)
     log_likelihood:         Optional[float] = None
@@ -142,12 +143,14 @@ class LogisticRegression(Model):
     def model_type(self) -> str:
         return "mle"
 
-    xtWx_inv:           Optional[np.ndarray] = field(default=None, repr=False)
-    deviance:           Optional[float] = None
-    null_deviance:      Optional[float] = None
-    pseudo_r_squared:   Optional[float] = None
-    lr_statistic:       Optional[float] = None
-    z_stat_coefficient: Optional[np.ndarray] = field(default=None)
+    xtWx_inv:                Optional[np.ndarray] = field(default=None, repr=False)
+    deviance:                Optional[float] = None
+    null_deviance:           Optional[float] = None
+    pseudo_r_squared:        Optional[float] = None
+    lr_statistic:            Optional[float] = None
+    z_stat_coefficient:      Optional[np.ndarray] = field(default=None, repr=False)
+    probabilities:           Optional[np.ndarray] = field(default=None, repr=False)
+    classification_accuracy: Optional[float] = None
 
     def fit(
         self,

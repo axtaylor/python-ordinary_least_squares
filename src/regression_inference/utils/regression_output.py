@@ -82,6 +82,7 @@ def summary(*args):
         
     if model.model_type == "mle":
          stats_lines = [
+            ("Accuracy", "classification_accuracy"),
             ("Pseudo R-squared", "pseudo_r_squared"),
             ("LR Statistic", "lr_statistic"),
             ("Observations", lambda m: m.X.shape[0]),
