@@ -2,7 +2,7 @@ def summary(*args):
 
     col_width, col_span, models = (
         15,
-        20,
+        30,
         list(args)
     )
     for i, model in enumerate(models):
