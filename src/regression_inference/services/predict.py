@@ -50,7 +50,7 @@ def _predict(model, X, alpha, return_table):
             "prediction": [np.round(prediction.item(), 4)],
             "std_error": [np.round(se_prediction,4)],
             "t_statistic": [np.round(t_stat.item(),4)],
-            "P>|t|": [np.round(p.item(), 6)],
+            "P>|t|": [f"{p.item():.3f}"],
             f"ci_low_{alpha}": [np.round(ci_low.item(), 4)],
             f"ci_high_{alpha}": [np.round(ci_high.item(), 4)],
         })
@@ -82,7 +82,7 @@ def _predict(model, X, alpha, return_table):
             "prediction_class": [int(prediction_prob.item() >= 0.5)],
             "std_error": [np.round(se_prediction, 4)],
             "z_statistic": [np.round(z_stat.item(), 4)],
-            "P>|z|": [np.round(p.item(), 6)],
+            "P>|z|": [f"{p.item():.3f}"],
             f"ci_low_{alpha}": [np.round(ci_low_prob.item(), 4)],
             f"ci_high_{alpha}": [np.round(ci_high_prob.item(), 4)],
         })
