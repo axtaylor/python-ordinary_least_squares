@@ -6,11 +6,12 @@ from .services.robust_std_error import _robust_se
 from .services.predict import _predict
 from .services.fit import _fit
 from .utils.inference_table import _inference_table
-from .utils.regression_output import summary
+from .utils.summary import summary
 import numpy as np
 
 @dataclass
 class Model(ABC):
+
     feature_names:          list[str] = field(default_factory=list)
     target:                 Optional[str] = None
     X:                      Optional[np.ndarray] = field(default=None, repr=False)
@@ -32,9 +33,7 @@ class Model(ABC):
     ci_high:                Optional[np.ndarray] = field(default=None)
 
     frozen:                 bool = field(default=False, repr=False)
-    MUTABLE_AFTER_FIT: ClassVar[frozenset[str]] = frozenset({
-        "feature_names", "target", "frozen"
-    })
+    MUTABLE_AFTER_FIT:      ClassVar[frozenset[str]] = frozenset({"feature_names", "target", "frozen"})
 
     def __str__(self) -> str:
         self._model_is_fitted()
@@ -104,6 +103,7 @@ class Model(ABC):
         return _inference_table(self)
 
 
+
 @dataclass
 class LinearRegression(Model):
 
@@ -135,22 +135,30 @@ class LinearRegression(Model):
         _fit(self, X, y, feature_names, target_name, alpha)
         self._post_fit_processing(cov_type)
         return self
-    
-@dataclass
-class LogisticRegression(Model):
 
-    @property
-    def model_type(self) -> str:
-        return "mle"
+
+
+@dataclass
+class _BaseClassifier(Model):
 
     xtWx_inv:                Optional[np.ndarray] = field(default=None, repr=False)
     deviance:                Optional[float] = None
     null_deviance:           Optional[float] = None
+    null_log_likelihood:     Optional[float] = None
     pseudo_r_squared:        Optional[float] = None
     lr_statistic:            Optional[float] = None
     z_stat_coefficient:      Optional[np.ndarray] = field(default=None, repr=False)
     probabilities:           Optional[np.ndarray] = field(default=None, repr=False)
     classification_accuracy: Optional[float] = None
+
+
+
+@dataclass
+class LogisticRegression(_BaseClassifier):
+
+    @property
+    def model_type(self) -> str:
+        return "mle"
 
     def fit(
         self,
@@ -163,6 +171,66 @@ class LogisticRegression(Model):
         max_iter:       int = 100,
         tol:            float = 1e-8,
     ) -> 'LogisticRegression':
+        
+        _fit(self, X, y, feature_names, target_name, alpha, max_iter, tol)
+        self._post_fit_processing(cov_type)
+        return self
+
+
+
+@dataclass
+class MultinomialLogisticRegression(_BaseClassifier):
+    
+    @property
+    def model_type(self) -> str:
+        return "multinomial"
+
+    n_classes:      Optional[int] = None
+    n_features:     Optional[int] = None
+    y_classes:      Optional[np.ndarray] = field(default=None, repr=False)
+    y_encoded:      Optional[np.ndarray] = field(default=None, repr=False)
+
+    # TODO - Improve efficiency of the fit function to reduce runtime.
+
+    def fit(
+        self,
+        X:              np.ndarray,
+        y:              np.ndarray,
+        feature_names:  Optional[list[str]] = None,
+        target_name:    Optional[str] = None,
+        cov_type:       Optional[str] = None,
+        alpha:          float = 0.05,
+        max_iter:       int = 100,
+        tol:            float = 1e-8,
+    ) -> 'MultinomialLogisticRegression':
+        
+        _fit(self, X, y, feature_names, target_name, alpha, max_iter, tol)
+        self._post_fit_processing(cov_type)
+        return self
+    
+
+
+# TODO - Complete this. Model does not converge.
+class OrdinalLogisticRegression(MultinomialLogisticRegression):
+
+    @property
+    def model_type(self) -> str:
+        return "ordinal"
+
+    theta_cutpoints:    Optional[np.ndarray] = field(default=None, repr=False)
+    alpha_cutpoints:    Optional[np.ndarray] = field(default=None, repr=False)
+
+    def fit(
+        self,
+        X:              np.ndarray,
+        y:              np.ndarray,
+        feature_names:  Optional[list[str]] = None,
+        target_name:    Optional[str] = None,
+        cov_type:       Optional[str] = None,
+        alpha:          float = 0.05,
+        max_iter:       int = 100,
+        tol:            float = 1e-8,
+    ) -> 'OrdinalLogisticRegression':
         
         _fit(self, X, y, feature_names, target_name, alpha, max_iter, tol)
         self._post_fit_processing(cov_type)

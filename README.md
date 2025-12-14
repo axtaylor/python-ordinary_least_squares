@@ -9,7 +9,7 @@
 pip install regression-inference
 ```
 
-Python packaged designed for inference workflows using MLE and OLS.
+Python packaged designed for optimized inference workflows with Linear, Logistic, Multinomial Logistic, and Ordinal Logistic Regressions.
 
 
 ### Usage
@@ -24,20 +24,24 @@ from regression_inference import *
 Import select utilities:
 
 ```python
-from regression_inference import LinearRegression, LogisticRegression, summary
+from regression_inference import LinearRegression, LogisticRegression, MultinomialLogisticRegression, OrdinalLogisticRegression, summary
 ```
 
 ### Documentation
 
-See the provided notebooks for example workflows.
+See the provided notebooks on GitHub for example workflows.
 
 ```
 /tests/notebooks/linear_regression_example.ipynb
 
 /tests/notebooks/logit_regression_example.ipynb
+
+/tests/notebooks/multinomial_regression_example.ipynb
+
+/tests/notebooks/ordinal_regression_example.ipynb
 ```
 
-### Output Example
+### Regression Outputs
 
 Stacked outputs using summary
 
@@ -114,6 +118,154 @@ BIC                          39.642
 *p<0.1; **p<0.05; ***p<0.01
 ```
 
+### Multinomial Logit Summary
+
+```
+=============================================
+Multinomial Regression Results
+---------------------------------------------
+Dependent:                                PID
+---------------------------------------------
+Class:                                      1
+
+const                                 -0.3734
+                                     (0.5943)
+ 
+logpopul                              -0.0115
+                                     (0.0341)
+ 
+selfLR                              0.2977***
+                                     (0.0993)
+ 
+age                                -0.0249***
+                                     (0.0061)
+ 
+educ                                   0.0825
+                                     (0.0740)
+ 
+income                                 0.0052
+                                     (0.0168)
+ 
+---------------------------------------------
+Class:                                      2
+
+const                              -2.2509***
+                                     (0.7579)
+ 
+logpopul                            -0.0888**
+                                     (0.0377)
+ 
+selfLR                              0.3917***
+                                     (0.1089)
+ 
+age                                -0.0229***
+                                     (0.0084)
+ 
+educ                                 0.1810**
+                                     (0.0862)
+ 
+income                               0.0479**
+                                     (0.0234)
+ 
+---------------------------------------------
+Class:                                      3
+
+const                              -3.6656***
+                                     (1.3816)
+ 
+logpopul                              -0.1060
+                                     (0.0659)
+ 
+selfLR                              0.5735***
+                                     (0.1648)
+ 
+age                                   -0.0149
+                                     (0.0107)
+ 
+educ                                  -0.0072
+                                     (0.1234)
+ 
+income                                 0.0576
+                                     (0.0390)
+ 
+---------------------------------------------
+Class:                                      4
+
+const                              -7.6138***
+                                     (1.0433)
+ 
+logpopul                            -0.0916**
+                                     (0.0452)
+ 
+selfLR                              1.2788***
+                                     (0.1382)
+ 
+age                                   -0.0087
+                                     (0.0086)
+ 
+educ                                 0.1998**
+                                     (0.0966)
+ 
+income                              0.0845***
+                                     (0.0262)
+ 
+---------------------------------------------
+Class:                                      5
+
+const                              -7.0605***
+                                     (0.8462)
+ 
+logpopul                            -0.0933**
+                                     (0.0399)
+ 
+selfLR                              1.3470***
+                                     (0.1252)
+ 
+age                                 -0.0179**
+                                     (0.0078)
+ 
+educ                                0.2169***
+                                     (0.0816)
+ 
+income                              0.0810***
+                                     (0.0219)
+ 
+---------------------------------------------
+Class:                                      6
+
+const                             -12.1058***
+                                     (1.2198)
+ 
+logpopul                           -0.1409***
+                                     (0.0427)
+ 
+selfLR                              2.0701***
+                                     (0.1747)
+ 
+age                                   -0.0094
+                                     (0.0084)
+ 
+educ                                0.3219***
+                                     (0.0879)
+ 
+income                              0.1089***
+                                     (0.0260)
+ 
+---------------------------------------------
+Accuracy                                0.394
+Pseudo R-squared                        0.165
+LR Statistic                          576.848
+Observations                          944.000
+Log Likelihood                      -1461.923
+Null Log Likelihood                 -1750.347
+Deviance                             2923.845
+Null Deviance                        3500.693
+AIC                                  2995.845
+BIC                                  3170.450
+=============================================
+*p<0.1; **p<0.05; ***p<0.01
+```
+
 ### Coefficient Inference Table
 
 Generate an inference table on fitted model objects. 
@@ -175,12 +327,13 @@ model.predict(np.array([[0, 0, 0], ]))
 [Out]: array([7.32564767])
 ```
 
-### Advanced Predictions
+### Inference Statistics for Predictions
 
-Use iterations to make predictions over a discrete range of values
 
 Use `return_table = True` to generate a dictionary of prediction statistics
 instead of an array of values.
+
+
 
 ```py
 prediction_set = [
@@ -193,7 +346,7 @@ predictions
 
 ![](./static/1.png)
 
-**Predictions on a Logistic Regression Model**
+**Predictions at Specific Feature Values**
 
 ```py
 prediction_set = [
@@ -223,4 +376,22 @@ Dictionary output can be converted into a `pd.DataFrame` object
 ```
 {'feature': Index(['paeduc', 'maeduc', 'age'], dtype='object'),
  'VIF': array([2.0233, 2.0285, 1.0971])}
+```
+
+### Heteroskedastic-Robust Standard Errors
+
+Set the covariance matrix on fit using `cov_type`:
+
+```py
+model = MultinomialLogisticRegression().fit(X, y, cov_type="HC0")
+
+model = LogisticRegression().fit(X, y, cov_type="HC1")
+
+model = LinearRegression().fit(X, y, cov_type="HC3")
+```
+
+Preview robust covariance without setting:
+
+```py
+model.robust_se(type="HC3")
 ```
