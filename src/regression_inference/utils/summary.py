@@ -1,3 +1,5 @@
+import numpy as np
+
 def summary(*args):
 
     col_width, col_span, models = (
@@ -23,6 +25,8 @@ def summary(*args):
             if models[0].model_type == "mle" else
             "Multinomial Regression Results"
             if models[0].model_type == "multinomial" else
+            "Ordinal Regression Results"
+            if models[0].model_type == "ordinal" else
             ValueError(f"Unknown model type: {models[0].model_type}")
             )}\n"
         f"{'-'*format_length}\n"
@@ -30,9 +34,23 @@ def summary(*args):
         f"{'-'*format_length}\n"
     )
 
+    feature_names = model.feature_names
+
+    if model.model_type == "ordinal":
+
+        p = len(model.feature_names)
+        remainder = model.theta.shape[0] - p
+
+        cutpoint_names = [f"{i}:{i+1}" for i in range(remainder)]
+
+        feature_names = np.concatenate([
+            np.array(model.feature_names),
+            np.array(cutpoint_names)
+    ])
+
     all_features = []
     for model in models:
-        for feature in model.feature_names:
+        for feature in feature_names:
             if feature not in all_features:
                 all_features.append(feature)
 
@@ -44,8 +62,8 @@ def summary(*args):
             se_row = " " * col_span
 
             for model in models:
-                if feature in model.feature_names:
-                    feature_index = list(model.feature_names).index(feature)
+                if feature in feature_names:
+                    feature_index = list(feature_names).index(feature)
                     coef = model.theta[feature_index]
                     se = model.std_error_coefficient[feature_index]
                     p = model.p_value_coefficient[feature_index]
@@ -137,7 +155,7 @@ def summary(*args):
             ("MSE", "mse"),
         ]
         
-    if model.model_type in ["mle", "multinomial"]:
+    if model.model_type in ["mle", "multinomial", "ordinal"]:
          stats_lines = [
             ("Accuracy", "classification_accuracy"),
             ("Pseudo R-squared", "pseudo_r_squared"),

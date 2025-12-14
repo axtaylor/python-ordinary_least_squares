@@ -1,9 +1,16 @@
 import numpy as np    
 from scipy.stats import t as t_dist, norm
 
+PROB_CLIP_MIN = 1e-15
+PROB_CLIP_MAX = 1 - 1e-15
+
 def _predict(model, X, alpha, return_table):
+
     X = np.asarray(X, dtype=float)
 
+    '''
+    Predictor for LogisticRegression()
+    '''
     def _sigmoid(z):
         return np.where(
             z >= 0,
@@ -11,40 +18,97 @@ def _predict(model, X, alpha, return_table):
             np.exp(z) / (1 + np.exp(z))
     )
 
+
+    '''
+    Predictor for MultinomialRegression()
+    '''
     def _softmax(Z: np.ndarray) -> np.ndarray:
         Z_stable = Z - np.max(Z, axis=1, keepdims=True)
         exp_Z = np.exp(np.clip(Z_stable, -700, 700))
         return exp_Z / np.sum(exp_Z, axis=1, keepdims=True)
+    
+    
+    '''
+    Predictor for OrdinalRegression()
+    '''
+    def _predict_prob(X, beta, alpha, n_classes):
 
+        n = X.shape[0]
+        J = len(alpha)
+        cumulative = np.zeros((n, J))
+
+        for j in range(J):
+            eta = alpha[j] - X @ beta
+            cumulative[:, j] = 1 / (1 + np.exp(-np.clip(eta, -700, 700)))
+
+        categorical_pr = np.zeros((n, n_classes))
+        categorical_pr[:, 0] = cumulative[:, 0]
+
+        for j in range(1, J):
+            categorical_pr[:, j] = cumulative[:, j] - cumulative[:, j-1]
+
+        categorical_pr[:, J] = 1 - cumulative[:, J-1]
+        categorical_pr = np.clip(categorical_pr, PROB_CLIP_MIN, PROB_CLIP_MAX)
+        categorical_pr /= categorical_pr.sum(axis=1, keepdims=True)
+        return categorical_pr
+
+
+    '''
+    Prediction as integer
+    '''
     if not return_table:
+
         return (
-            np.asarray(X, dtype=float) @ model.coefficients + model.intercept
+
+            X @ model.coefficients + model.intercept
             if model.model_type == "ols" else
-            _sigmoid(np.asarray(X, dtype=float) @ model.coefficients + model.intercept)
+
+            _sigmoid(X @ model.coefficients + model.intercept)
             if model.model_type == "mle" else
+
             _softmax(
                 np.column_stack([
-                    np.zeros(np.asarray(X).shape[0]),
+                    np.zeros(X.shape[0]),
                     np.asarray(X, dtype=float) @ model.coefficients + model.intercept
                 ])
             )
             if model.model_type == "multinomial" else
+
+            _predict_prob(
+                np.atleast_2d(X),
+                model.coefficients,
+                model.alpha_cutpoints,
+                model.n_classes
+            )
+            if model.model_type == "ordinal" else
+
             ValueError(f"Unknown model type: {model.model_type}")
-    )
+        )
 
-    prediction_features = {
-            name: f'{value_at.item():.2f}'
-            for name, value_at in zip(model.feature_names[1:], X[0])
-    }
-    
-    X = np.hstack([np.ones((X.shape[0], 1)), X])
 
-    if not model.model_type == "multinomial":
+    '''
+    Tabular Predictions shared configurations
+    '''
+    # Ordinal has no intercept
+    if not model.model_type == "ordinal":
+        prediction_features = {
+                name: f'{value_at.item():.2f}'
+                for name, value_at in zip(model.feature_names[1:], X[0])
+        }
+
+        X = np.hstack([np.ones((X.shape[0], 1)), X])
+
+    # Only Linear and base Logit 
+    if not model.model_type in ["multinomial", "ordinal"]:
         prediction = X @ model.theta
         se_prediction = (
             np.sqrt((X @ model.variance_coefficient @ X.T)).item()
         )
 
+
+    '''
+    Tabular Least Squares Predictions
+    '''
     if model.model_type == "ols":
                 
         t_critical = t_dist.ppf(1 - alpha/2, model.degrees_freedom)
@@ -70,6 +134,10 @@ def _predict(model, X, alpha, return_table):
             f"ci_high_{alpha}": [np.round(ci_high.item(), 4)],
         })
     
+
+    '''
+    Tabular base Logit Predictions
+    '''
     if model.model_type == "mle":
 
         prediction_prob = _sigmoid(prediction)
@@ -103,6 +171,9 @@ def _predict(model, X, alpha, return_table):
         })
 
 
+    '''
+    Tabular Multinomial Logit Predictions
+    '''
     if model.model_type == "multinomial":
         
         x = X[0]
@@ -159,3 +230,40 @@ def _predict(model, X, alpha, return_table):
             })
 
         return classes
+    
+
+    '''
+    Tabular Ordinal Logit Predictions
+    '''
+    if model.model_type == "ordinal":
+
+        X = np.atleast_2d(X)
+
+        prediction_features = {
+            name: f'{value_at.item():.2f}'
+            for name, value_at in zip(model.feature_names, X[0])
+        }
+
+        probs = _predict_prob(
+            X,
+            model.coefficients,
+            model.alpha_cutpoints,
+            model.n_classes
+        )
+
+        results = []
+        for i in range(X.shape[0]):
+            p_i = probs[i]
+            pred_class = int(np.argmax(p_i))
+            expected = float(np.dot(p_i, np.arange(model.n_classes)))
+            cumulative = np.cumsum(p_i)
+
+            results.append({
+                "features": [prediction_features],
+                "prediction_class": pred_class,
+                "prediction_expected": round(expected, 4),
+                "prediction_probabilities": np.round(p_i, 4).tolist(),
+                "cumulative_probabilities": np.round(cumulative, 4).tolist(),
+            })
+
+        return results

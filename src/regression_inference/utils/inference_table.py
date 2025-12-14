@@ -7,13 +7,28 @@ def _inference_table(model) -> List[dict[str: float]]:
         ("t_statistic", model.t_stat_coefficient)
         if model.model_type == "ols" else
         ("z_statistic", model.z_stat_coefficient)
-        if model.model_type in ["mle", "multinomial"] else
+        if model.model_type in ["mle", "multinomial", "ordinal"] else
         ValueError("Unknown model type")
     )
 
+    feature_names = model.feature_names
+
     if model.model_type == "multinomial":
+        
         return _inference_table_multinomial(model, stat, model_stat)
     
+    if model.model_type == "ordinal":
+
+        p = len(model.feature_names)
+        remainder = model.theta.shape[0] - p
+
+        cutpoint_names = [f"{i}:{i+1}" for i in range(remainder)]
+
+        feature_names = np.concatenate([
+            np.array(model.feature_names),
+            np.array(cutpoint_names)
+    ])
+
     return [
         {
             "feature": feature,
@@ -26,7 +41,7 @@ def _inference_table(model) -> List[dict[str: float]]:
         }
     for feature, coefficient, se, statistic, p, low, high in
     zip(
-        model.feature_names,
+        feature_names,
         model.theta,
         model.std_error_coefficient,
         model_stat,

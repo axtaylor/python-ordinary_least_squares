@@ -7,10 +7,6 @@ PROB_CLIP_MIN = 1e-15
 PROB_CLIP_MAX = 1 - 1e-15
 
 # TODO - Solve convergence error
-# TODO - Proper standard errors
-
-# IMPLEMENTED - Correct coefficients 
-
 
 def _internal_ordinal_logit(model, max_iter: int, tol: float) -> None:
      
@@ -35,7 +31,6 @@ def _internal_ordinal_logit(model, max_iter: int, tol: float) -> None:
     _model_params(model, y_enc)
 
 
-
 def ordinal_fit(model, y, max_iter, tol):
 
     model.X = np.atleast_2d(model.X)
@@ -55,7 +50,14 @@ def ordinal_fit(model, y, max_iter, tol):
 
     model.coefficients = res.x[:p]
     model.alpha_cutpoints = np.sort(res.x[p:])
-    model.xtWx_inv = res.hess_inv
+
+    H = _numerical_hessian(
+        _negativeLL,
+        res.x,
+        args=(model.X, y, model.n_classes)
+    )
+    # Invert observed Hessian
+    model.xtWx_inv = np.linalg.inv(H)
     
     # KEEP
     model.theta_cutpoints = np.empty_like(model.alpha_cutpoints)
@@ -64,25 +66,6 @@ def ordinal_fit(model, y, max_iter, tol):
     model.theta = np.concatenate([model.coefficients, model.theta_cutpoints])
 
     return res
-
-
-def _ordinal_postfit(model):
-
-    model.probabilities = _predict_prob(
-        model.X,
-        model.coefficients,
-        model.alpha_cutpoints,
-        model.n_classes
-    )
-    model.predictions = np.argmax(model.probabilities, axis=1)
-    model.classification_accuracy = np.mean(
-        model.predictions == model.y_encoded
-    )
-    n = len(model.y_encoded)
-    Y_onehot = np.zeros((n, model.n_classes))
-    Y_onehot[np.arange(n), model.y_encoded] = 1
-
-    return Y_onehot
 
 
 def _negativeLL(params, X, y, n_classes):
@@ -114,6 +97,48 @@ def _negativeLL(params, X, y, n_classes):
     return -np.sum(np.log(probs[np.arange(n), y]))
 
 
+def _numerical_hessian(fun, x0, args=(), eps=1e-5):
+
+    x0 = np.asarray(x0)
+    n = x0.size
+    H = np.zeros((n, n))
+
+    f0 = fun(x0, *args)
+
+    for i in range(n):
+        x_i_plus  = x0.copy()
+        x_i_minus = x0.copy()
+        x_i_plus[i]  += eps
+        x_i_minus[i] -= eps
+
+        f_ip = fun(x_i_plus, *args)
+        f_im = fun(x_i_minus, *args)
+
+        H[i, i] = (f_ip - 2 * f0 + f_im) / eps**2
+
+        for j in range(i + 1, n):
+            x_pp = x0.copy()
+            x_pm = x0.copy()
+            x_mp = x0.copy()
+            x_mm = x0.copy()
+
+            x_pp[i] += eps; x_pp[j] += eps
+            x_pm[i] += eps; x_pm[j] -= eps
+            x_mp[i] -= eps; x_mp[j] += eps
+            x_mm[i] -= eps; x_mm[j] -= eps
+
+            f_pp = fun(x_pp, *args)
+            f_pm = fun(x_pm, *args)
+            f_mp = fun(x_mp, *args)
+            f_mm = fun(x_mm, *args)
+
+            val = (f_pp - f_pm - f_mp + f_mm) / (4 * eps**2)
+            H[i, j] = val
+            H[j, i] = val
+
+    return H
+
+
 def _predict_prob(X, beta, alpha, n_classes):
 
     n = X.shape[0]
@@ -139,6 +164,49 @@ def _predict_prob(X, beta, alpha, n_classes):
     return categorical_pr
 
 
+def _transform_covariance(model):
+
+    beta = model.coefficients
+    alpha = model.alpha_cutpoints
+
+    p = len(beta)
+    J = len(alpha)
+    V = model.xtWx_inv
+
+    dim = p + J
+    G = np.zeros((dim, dim))
+
+    G[:p, :p] = np.eye(p)
+    G[p, p] = 1.0
+
+    for j in range(1, J):
+        denom = alpha[j] - alpha[j - 1]
+        G[p + j, p + j]     =  1.0 / denom
+        G[p + j, p + j - 1] = -1.0 / denom
+
+    V_theta = G @ V @ G.T
+    return V_theta
+
+
+def _ordinal_postfit(model):
+
+    model.probabilities = _predict_prob(
+        model.X,
+        model.coefficients,
+        model.alpha_cutpoints,
+        model.n_classes
+    )
+    model.predictions = np.argmax(model.probabilities, axis=1)
+    model.classification_accuracy = np.mean(
+        model.predictions == model.y_encoded
+    )
+    n = len(model.y_encoded)
+    Y_onehot = np.zeros((n, model.n_classes))
+    Y_onehot[np.arange(n), model.y_encoded] = 1
+
+    return Y_onehot
+
+
 def _model_params(model, y_enc: np.ndarray):
 
     y_hat_prob = model.probabilities
@@ -160,14 +228,16 @@ def _model_params(model, y_enc: np.ndarray):
     model.pseudo_r_squared = 1 - (model.log_likelihood / model.null_log_likelihood)
     model.lr_statistic = -2 * (model.null_log_likelihood - model.log_likelihood)
 
-    model.variance_coefficient = model.xtWx_inv
-    std_errors = np.sqrt(np.maximum(np.diag(model.variance_coefficient), 1e-20))
-    params = np.concatenate([model.coefficients, model.alpha_cutpoints]) #theta_cutpoints
+    V_theta = _transform_covariance(model)
+    params = model.theta
+    std_errors = np.sqrt(np.maximum(np.diag(V_theta), 1e-20))
+
+    model.variance_coefficient = V_theta
     model.std_error_coefficient = std_errors
     model.z_stat_coefficient = params / std_errors
     model.p_value_coefficient = 2 * (1 - norm.cdf(np.abs(model.z_stat_coefficient)))
+
     z_crit = norm.ppf(1 - model.alpha / 2)
-    #params = np.concatenate([model.coefficients, model.alpha_cutpoints]) # theta_cutpoints
     model.ci_low = params - z_crit * std_errors
     model.ci_high = params + z_crit * std_errors
 

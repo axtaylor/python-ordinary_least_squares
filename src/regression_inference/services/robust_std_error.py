@@ -44,6 +44,9 @@ def _robust_se(model, type, apply=False):
         h = np.zeros(n) if type in ["HC0", "HC1"] else None
         sr = None 
 
+    '''
+    OLS and Base Logit Only
+    '''
     if sr is not None:    
 
         HC_ = {
@@ -88,6 +91,7 @@ def _robust_se(model, type, apply=False):
             raise ValueError("Select 'HC0', 'HC1', 'HC2', 'HC3'")
     
     else:
+
         p = model.X.shape[1]
         J = model.theta.shape[1]
         
@@ -107,8 +111,6 @@ def _robust_se(model, type, apply=False):
             for i in range(n):
                 Xi = model.X[i][:, None]  # (p, 1)
                 e_i = residuals[i]  # (J,)
-                
-                # Kronecker product: e_i ⊗ Xi
                 score = np.kron(e_i, Xi.flatten())  # (p*J,)
                 omega += np.outer(score, score)
             
@@ -137,7 +139,9 @@ def _robust_se(model, type, apply=False):
         except KeyError:
             raise ValueError("Select 'HC0', 'HC1', 'HC2', 'HC3'")
 
-        
+    '''
+    If 'cov_type' is set on model fitting update the covariance before attributes are frozen.
+    '''
     if apply:
 
         if model.model_type == "ols":

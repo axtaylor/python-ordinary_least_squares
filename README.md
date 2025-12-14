@@ -11,6 +11,17 @@ pip install regression-inference
 
 Python packaged designed for optimized inference workflows with Linear, Logistic, Multinomial Logistic, and Ordinal Logistic Regressions.
 
+### Prerequsites
+
+`numpy` and `scipy` are required as dependencies in `regression-inference`
+
+```
+pip install numpy>=2.0.0
+pip install scipy>=1.15.0
+```
+
+`pandas` is optional but recommended for formatting the dictionary outputs into `pd.DataFrame` and `pd.Series` objects.
+
 
 ### Usage
 
@@ -262,6 +273,63 @@ Deviance                             2923.845
 Null Deviance                        3500.693
 AIC                                  2995.845
 BIC                                  3170.450
+=============================================
+*p<0.1; **p<0.05; ***p<0.01
+```
+
+### Ordinal Regression Summary
+
+```
+=============================================
+Ordinal Regression Results
+---------------------------------------------
+Dependent:                                PID
+---------------------------------------------
+ 
+logpopul                           -0.0707***
+                                     (0.0191)
+ 
+selfLR                              1.0192***
+                                     (0.0533)
+ 
+age                                   -0.0042
+                                     (0.0037)
+ 
+educ                                0.1777***
+                                     (0.0408)
+ 
+income                              0.0472***
+                                     (0.0108)
+ 
+0:1                                 3.6891***
+                                     (0.3729)
+ 
+1:2                                 0.2243***
+                                     (0.0686)
+ 
+2:3                                -0.3445***
+                                     (0.0910)
+ 
+3:4                                -1.3565***
+                                     (0.1607)
+ 
+4:5                                -0.4247***
+                                     (0.0979)
+ 
+5:6                                  0.1653**
+                                     (0.0752)
+
+---------------------------------------------
+Accuracy                                0.388
+Pseudo R-squared                        0.146
+LR Statistic                          511.454
+Observations                          944.000
+Log Likelihood                      -1494.620
+Null Log Likelihood                 -1750.347
+Deviance                             2989.239
+Null Deviance                        3500.693
+AIC                                  3011.239
+BIC                                  3064.590
 =============================================
 *p<0.1; **p<0.05; ***p<0.01
 ```
