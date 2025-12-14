@@ -1,6 +1,5 @@
 import numpy as np
 import warnings
-from .fit_ordinal import ordinal_fit, ordinal_postfit
 from scipy.stats import norm
 
 COND_THRESHOLD = 1e10
@@ -14,7 +13,7 @@ def _softmax(Z: np.ndarray) -> np.ndarray:
     return exp_Z / np.sum(exp_Z, axis=1, keepdims=True)
 
 
-def _internal_multinomial_logit(model, max_iter: int, tol: float, ordinal: bool) -> None:
+def _internal_multinomial_logit(model, max_iter: int, tol: float) -> None:
      
     n_samples, model.n_features = model.X.shape
     model.n_classes = len(np.unique(model.y))
@@ -30,17 +29,7 @@ def _internal_multinomial_logit(model, max_iter: int, tol: float, ordinal: bool)
     Y_onehot = np.zeros((n_samples, model.n_classes))
     Y_onehot[np.arange(n_samples), model.y_encoded] = 1
 
-    if model.model_type == "ordinal":
-
-        converged = ordinal_fit(model, model.y_encoded, max_iter, tol)
-        if not converged.success:
-            _conv_warn(max_iter, converged.message)
-
-        y_enc = ordinal_postfit(model)  
-        _model_params(model, y_enc)
-
-    if not model.model_type == "ordinal":
-        _standard_fit(model, Y_onehot, n_samples, max_iter, tol)
+    _standard_fit(model, Y_onehot, n_samples, max_iter, tol)
 
 
 
@@ -147,11 +136,7 @@ def _model_params(model, y_enc: np.ndarray):
     model.null_log_likelihood = np.sum(y_enc * np.log(class_probs))
     model.null_deviance = -2 * model.null_log_likelihood
 
-    n_params = (
-        model.n_features + (model.n_classes - 1)
-        if model.model_type == "ordinal" else
-        model.theta.size
-    )
+    n_params = (model.theta.size)
     model.aic = -2 * model.log_likelihood + 2 * n_params
     model.bic = -2 * model.log_likelihood + n_params * np.log(n_samples)
     model.pseudo_r_squared = 1 - (model.log_likelihood / model.null_log_likelihood)
@@ -160,38 +145,23 @@ def _model_params(model, y_enc: np.ndarray):
     model.variance_coefficient = model.xtWx_inv
     std_errors = np.sqrt(np.maximum(np.diag(model.variance_coefficient), 1e-20))
 
-    if model.model_type == "ordinal":
-        params = np.concatenate([model.coefficients, model.alpha_cutpoints]) #theta_cutpoints
-        model.std_error_coefficient = std_errors
-        model.z_stat_coefficient = params / std_errors
-
-    else:
-        theta_flat = model.theta.flatten(order="F")
-        model.std_error_coefficient = std_errors
-        model.z_stat_coefficient = theta_flat / std_errors
-
+    theta_flat = model.theta.flatten(order="F")
+    model.std_error_coefficient = std_errors
+    model.z_stat_coefficient = theta_flat / std_errors
     model.p_value_coefficient = 2 * (1 - norm.cdf(np.abs(model.z_stat_coefficient)))
     z_crit = norm.ppf(1 - model.alpha / 2)
-
-    if model.model_type == "ordinal":
-        params = np.concatenate([model.coefficients, model.alpha_cutpoints]) # theta_cutpoints
-        model.ci_low = params - z_crit * std_errors
-        model.ci_high = params + z_crit * std_errors
-
-    else:
-        theta_flat = model.theta.flatten(order="F")
-        model.ci_low = theta_flat - z_crit * std_errors
-        model.ci_high = theta_flat + z_crit * std_errors
-        shape = model.theta.shape
-        model.std_error_coefficient = model.std_error_coefficient.reshape(shape, order="F")
-        model.z_stat_coefficient = model.z_stat_coefficient.reshape(shape, order="F")
-        model.p_value_coefficient = model.p_value_coefficient.reshape(shape, order="F")
-        model.ci_low = model.ci_low.reshape(shape, order="F")
-        model.ci_high = model.ci_high.reshape(shape, order="F")
+    #theta_flat = model.theta.flatten(order="F")
+    model.ci_low = theta_flat - z_crit * std_errors
+    model.ci_high = theta_flat + z_crit * std_errors
+    shape = model.theta.shape
+    model.std_error_coefficient = model.std_error_coefficient.reshape(shape, order="F")
+    model.z_stat_coefficient = model.z_stat_coefficient.reshape(shape, order="F")
+    model.p_value_coefficient = model.p_value_coefficient.reshape(shape, order="F")
+    model.ci_low = model.ci_low.reshape(shape, order="F")
+    model.ci_high = model.ci_high.reshape(shape, order="F")
 
     predicted_class = np.argmax(y_hat_prob, axis=1)
-    actual_class = model.y_encoded
-    model.residuals = (actual_class != predicted_class).astype(float)
+    model.residuals = (model.y_encoded != predicted_class).astype(float)
 
 
 

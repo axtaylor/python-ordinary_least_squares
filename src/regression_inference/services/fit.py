@@ -3,6 +3,7 @@ from ..utils.input_validator import validate
 from .fit_ols import _internal_linear
 from .fit_mle import _internal_logit
 from .fit_multinomial import _internal_multinomial_logit
+from .fit_ordinal import _internal_ordinal_logit
 import numpy as np
 
 def _get_featureLabel(X, feature_names):
@@ -60,11 +61,12 @@ def _fit(
     elif model.model_type == "mle":
         _internal_logit(model, max_iter, tol)
 
-    # TODO - separate when ordinal complete.
-    
-    elif model.model_type in ["multinomial", "ordinal"]:
-        _internal_multinomial_logit(model, max_iter, tol, ordinal)
+    elif model.model_type == "multinomial":
+        _internal_multinomial_logit(model, max_iter, tol)
         
+    elif model.model_type == "ordinal":
+        _internal_ordinal_logit(model, max_iter, tol)
+
     else:
         raise ValueError(f"Unknown model_type: {model.model_type}")
     
