@@ -16,8 +16,8 @@ Python packaged designed for optimized inference workflows with Linear, Logistic
 `numpy` and `scipy` are required as dependencies in `regression-inference`
 
 ```
-pip install numpy>=2.0.0
-pip install scipy>=1.15.0
+numpy >=2.0.0
+scipy >=1.15.0
 ```
 
 `pandas` is optional but recommended for formatting the dictionary outputs into `pd.DataFrame` and `pd.Series` objects.

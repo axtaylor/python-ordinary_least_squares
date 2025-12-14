@@ -41,7 +41,7 @@ def validate(X: np.ndarray, y: np.ndarray, alpha: float, model_type: str):
     if np.any(~np.isfinite(y_array)):
         raise ValueError("y contains NaN or infinite values")
     
-    if model_type == 'mle':
+    if model_type == 'logit':
         unique_values = np.unique(y_array)
         
         if not np.all(np.isin(y_array, [0, 1])):

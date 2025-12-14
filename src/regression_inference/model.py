@@ -1,12 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Union, ClassVar, Optional
 from abc import ABC, abstractmethod
-from .services.variance_inflation_factor import _variance_inflation_factor
-from .services.robust_std_error import _robust_se
-from .services.predict import _predict
-from .services.fit import _fit
-from .utils.inference_table import _inference_table
-from .utils.summary import summary
+from .services import model_vif, model_robust_cov, model_predict, model_fit
+from .utils import table, summary
 import numpy as np
 
 @dataclass
@@ -36,8 +32,8 @@ class Model(ABC):
     MUTABLE_AFTER_FIT:      ClassVar[frozenset[str]] = frozenset({"feature_names", "target", "frozen"})
 
     def __str__(self) -> str:
-        self._model_is_fitted()
-        return summary(self)
+        self.__model_fitted()
+        return summary.summary(self)
 
     def __setattr__(self, name: str, value) -> None:
         if getattr(self, "frozen", False) and name not in self.MUTABLE_AFTER_FIT:
@@ -56,17 +52,17 @@ class Model(ABC):
     def is_fitted(self) -> bool:
         return self.theta is not None
     
-    def _model_is_fitted(self) -> None:
+    def __model_fitted(self) -> None:
         if not self.is_fitted:
             raise ValueError("Model is not fitted. Call 'fit' with arguments before using this method.")
         
-    def _freeze(self) -> None:
+    def __freeze(self) -> None:
         self.frozen = True
 
-    def _post_fit_processing(self, cov_type: Optional[str]) -> None:
+    def post_fit(self, cov_type: Optional[str]) -> None:
         if cov_type:
-            _robust_se(self, type=cov_type, apply=True)
-        self._freeze()
+            model_robust_cov.robust_se(self, type=cov_type, apply=True)
+        self.__freeze()
     
     @abstractmethod
     def fit(
@@ -87,20 +83,20 @@ class Model(ABC):
             return_table:   bool  = False,
     ) -> Union[np.ndarray, dict]:
         
-        self._model_is_fitted()
-        return _predict(self, X, alpha, return_table)
+        self.__model_fitted()
+        return model_predict.predict(self, X, alpha, return_table)
 
     def robust_se(self, type: str = "HC3") -> dict:
-        self._model_is_fitted()
-        return _robust_se(self, type, False)
+        self.__model_fitted()
+        return model_robust_cov.robust_se(self, type, False)
 
     def variance_inflation_factor(self) -> dict:
-        self._model_is_fitted()
-        return _variance_inflation_factor(self)
+        self.__model_fitted()
+        return model_vif.variance_inflation_factor(self)
     
     def inference_table(self) -> dict:
-        self._model_is_fitted()
-        return _inference_table(self)
+        self.__model_fitted()
+        return table.inference_table(self)
 
 
 
@@ -109,7 +105,7 @@ class LinearRegression(Model):
 
     @property
     def model_type(self) -> str:
-        return "ols"
+        return "linear"
 
     xtx_inv:            Optional[np.ndarray] = field(default=None, repr=False)
     rss:                Optional[float] = None
@@ -132,14 +128,14 @@ class LinearRegression(Model):
         alpha:          float = 0.05,
     ) -> 'LinearRegression':
         
-        _fit(self, X, y, feature_names, target_name, alpha)
-        self._post_fit_processing(cov_type)
+        model_fit.fit(self, X, y, feature_names, target_name, alpha)
+        self.post_fit(cov_type)
         return self
 
 
 
 @dataclass
-class _BaseClassifier(Model):
+class BaseClassifier(Model):
 
     xtWx_inv:                Optional[np.ndarray] = field(default=None, repr=False)
     deviance:                Optional[float] = None
@@ -151,15 +147,6 @@ class _BaseClassifier(Model):
     probabilities:           Optional[np.ndarray] = field(default=None, repr=False)
     classification_accuracy: Optional[float] = None
 
-
-
-@dataclass
-class LogisticRegression(_BaseClassifier):
-
-    @property
-    def model_type(self) -> str:
-        return "mle"
-
     def fit(
         self,
         X:              np.ndarray,
@@ -170,68 +157,43 @@ class LogisticRegression(_BaseClassifier):
         alpha:          float = 0.05,
         max_iter:       int = 100,
         tol:            float = 1e-8,
-    ) -> 'LogisticRegression':
+        adj_cutpoints:  bool = False,
+    ) -> 'BaseClassifier':
         
-        _fit(self, X, y, feature_names, target_name, alpha, max_iter, tol)
-        self._post_fit_processing(cov_type)
+        model_fit.fit(self, X, y, feature_names, target_name, alpha, max_iter, tol, adj_cutpoints)
+        self.post_fit(cov_type)
         return self
 
 
 
 @dataclass
-class MultinomialLogisticRegression(_BaseClassifier):
-    
+class LogisticRegression(BaseClassifier):
+
     @property
     def model_type(self) -> str:
-        return "multinomial"
+        return "logit"
+
+
+
+@dataclass
+class MultinomialLogisticRegression(BaseClassifier):
+
+    @property
+    def model_type(self) -> str:
+        return "logit_multinomial"
 
     n_classes:      Optional[int] = None
     n_features:     Optional[int] = None
     y_classes:      Optional[np.ndarray] = field(default=None, repr=False)
     y_encoded:      Optional[np.ndarray] = field(default=None, repr=False)
 
-    # TODO - Improve efficiency of the fit function to reduce runtime.
-
-    def fit(
-        self,
-        X:              np.ndarray,
-        y:              np.ndarray,
-        feature_names:  Optional[list[str]] = None,
-        target_name:    Optional[str] = None,
-        cov_type:       Optional[str] = None,
-        alpha:          float = 0.05,
-        max_iter:       int = 100,
-        tol:            float = 1e-8,
-    ) -> 'MultinomialLogisticRegression':
-        
-        _fit(self, X, y, feature_names, target_name, alpha, max_iter, tol)
-        self._post_fit_processing(cov_type)
-        return self
     
 
-
-# TODO - Complete this. Model does not converge.
 class OrdinalLogisticRegression(MultinomialLogisticRegression):
 
     @property
     def model_type(self) -> str:
-        return "ordinal"
+        return "logit_ordinal"
 
     theta_cutpoints:    Optional[np.ndarray] = field(default=None, repr=False)
     alpha_cutpoints:    Optional[np.ndarray] = field(default=None, repr=False)
-
-    def fit(
-        self,
-        X:              np.ndarray,
-        y:              np.ndarray,
-        feature_names:  Optional[list[str]] = None,
-        target_name:    Optional[str] = None,
-        cov_type:       Optional[str] = None,
-        alpha:          float = 0.05,
-        max_iter:       int = 100,
-        tol:            float = 1e-8,
-    ) -> 'OrdinalLogisticRegression':
-        
-        _fit(self, X, y, feature_names, target_name, alpha, max_iter, tol)
-        self._post_fit_processing(cov_type)
-        return self

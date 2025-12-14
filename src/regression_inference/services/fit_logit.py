@@ -6,27 +6,37 @@ COND_THRESHOLD = 1e10
 PROB_CLIP_MIN = 1e-15
 PROB_CLIP_MAX = 1 - 1e-15
 
-def _sigmoid(z: np.ndarray) -> np.ndarray:
+def sigmoid(z: np.ndarray) -> np.ndarray:
+    
     return np.where(
         z >= 0,
         1 / (1 + np.exp(-z)),
         np.exp(z) / (1 + np.exp(z))
     )
 
-def _internal_logit(model, max_iter: int, tol: float):
+def internal_logit(model, max_iter: int, tol: float) -> None:
 
     model.theta = np.zeros(model.X.shape[1])
 
-    converged = _fit_gradient(model, max_iter, tol)
+    converged = fit_gradient(model, max_iter, tol)
+
     if not converged:
-        _conv_warn(max_iter)
+        conv_warn(max_iter)
 
     if np.max(np.abs(model.theta)) > 10:
-        _separation_warn(np.max(np.abs(model.theta)))
+        separation_warn(np.max(np.abs(model.theta)))
 
-    model.probabilities, H = _predict_prob(model.X, model.theta)
-    model.predictions = (model.probabilities >= 0.5).astype(int)
-    model.classification_accuracy = np.mean(model.predictions == model.y)
+    model.probabilities, H = (
+        predict_prob(model.X, model.theta)
+    )
+
+    model.predictions = (
+        (model.probabilities >= 0.5).astype(int)
+    )
+
+    model.classification_accuracy = (
+        np.mean(model.predictions == model.y)
+    )
 
     try:
         model.xtWx_inv = np.linalg.inv(H)
@@ -35,24 +45,38 @@ def _internal_logit(model, max_iter: int, tol: float):
     
     cond = np.linalg.cond(H)
     if cond > COND_THRESHOLD:
-        _cond_warn(cond) 
+        cond_warn(cond) 
 
-    model.intercept, model.coefficients = model.theta[0], model.theta[1:]
-    _model_params(model)
+    model.intercept, model.coefficients = (
+        model.theta[0],
+        model.theta[1:]
+    )
+
+    model_params(model)
 
 
-def _fit_gradient(model, max_iter: int, tol: float) -> bool:
-    """
-    Newton-Raphson IRLS optimization.
-    """
+
+def fit_gradient(model, max_iter: int, tol: float) -> bool:
+
     for _ in range(max_iter):
 
         z = model.X @ model.theta
-        mu = _sigmoid(z)
-        mu = np.clip(mu, PROB_CLIP_MIN, PROB_CLIP_MAX)
-        gradient = model.X.T @ (mu - model.y)
-        W = mu * (1 - mu)
-        H = model.X.T @ (W[:, np.newaxis] * model.X)
+
+        mu = (
+            np.clip(sigmoid(z), PROB_CLIP_MIN, PROB_CLIP_MAX)
+        )
+
+        gradient = (
+            model.X.T @ (mu - model.y)
+        )
+
+        W = (
+            mu * (1 - mu)
+        )
+
+        H = (
+            model.X.T @ (W[:, np.newaxis] * model.X)
+        )
         
         try:
             H_inv = np.linalg.inv(H)
@@ -64,7 +88,10 @@ def _fit_gradient(model, max_iter: int, tol: float) -> bool:
                 "- Insufficient observations\n"
                 "- Constant or duplicate columns in X"
         )
-        theta_new = model.theta - H_inv @ gradient
+
+        theta_new = (
+            model.theta - H_inv @ gradient
+        )
 
         if np.max(np.abs(theta_new - model.theta)) < tol:
             model.theta = theta_new
@@ -75,52 +102,99 @@ def _fit_gradient(model, max_iter: int, tol: float) -> bool:
     return False
 
 
-def _predict_prob(X: np.ndarray, theta: np.ndarray):
-    z = X @ theta
-    mu = _sigmoid(z)
-    mu = np.clip(mu, PROB_CLIP_MIN, PROB_CLIP_MAX)
-    W = mu * (1 - mu)
-    H = X.T @ (W[:, np.newaxis] * X)
+def predict_prob(X: np.ndarray, theta: np.ndarray):
+
+    z = (
+        X @ theta
+    )
+
+    mu = (
+        np.clip(sigmoid(z), PROB_CLIP_MIN, PROB_CLIP_MAX)
+    )
+
+    W = (
+        mu * (1 - mu)
+    )
+
+    H = (
+        X.T @ (W[:, np.newaxis] * X)
+    )
+
     return mu, H
 
 
-def _model_params(model):
+def model_params(model) -> None:
 
     y_hat_prob = model.probabilities
 
-    # Deviance residuals
     model.residuals = (
         np.sign(model.y - y_hat_prob) * np.sqrt(-2 * (model.y * np.log(y_hat_prob) + 
         (1 - model.y) * np.log(1 - y_hat_prob)))
     )
+
     model.log_likelihood = (
         np.sum(model.y * np.log(y_hat_prob) + (1 - model.y) * np.log(1 - y_hat_prob))
     )
-    model.deviance = -2 * model.log_likelihood
 
-    # Null Model
-    y_bar = np.clip(np.mean(model.y), PROB_CLIP_MIN, PROB_CLIP_MAX)
+    model.deviance = (
+        -2 * model.log_likelihood
+    )
+
+    y_bar = (
+        np.clip(np.mean(model.y), PROB_CLIP_MIN, PROB_CLIP_MAX)
+    )
    
     model.null_log_likelihood = (
         np.sum(model.y * np.log(y_bar) + (1 - model.y) * np.log(1 - y_bar))
     )
-    model.null_deviance = -2 * model.null_log_likelihood
+
+    model.null_deviance = (
+        -2 * model.null_log_likelihood
+    )
 
     n, k = model.X.shape
-    model.aic = -2 * model.log_likelihood + 2 * k
-    model.bic = -2 * model.log_likelihood + k * np.log(n)
-    model.pseudo_r_squared = 1 - (model.log_likelihood / model.null_log_likelihood)
-    model.lr_statistic = -2 * (model.null_log_likelihood - model.log_likelihood)
+
+    model.aic = (
+        -2 * model.log_likelihood + 2 * k
+    )
+
+    model.bic = (
+        -2 * model.log_likelihood + k * np.log(n)
+    )
+
+    model.pseudo_r_squared = (
+        1 - (model.log_likelihood / model.null_log_likelihood)
+    )
+
+    model.lr_statistic = (
+        -2 * (model.null_log_likelihood - model.log_likelihood)
+    )
+
     model.variance_coefficient = model.xtWx_inv
-    model.std_error_coefficient = np.sqrt(np.diag(model.variance_coefficient))
-    model.z_stat_coefficient = model.theta / model.std_error_coefficient
-    model.p_value_coefficient = 2 * (1 - norm.cdf(abs(model.z_stat_coefficient)))
-    z_crit = norm.ppf(1 - model.alpha / 2)
-    model.ci_low = model.theta - z_crit * model.std_error_coefficient
-    model.ci_high = model.theta + z_crit * model.std_error_coefficient
+
+    model.std_error_coefficient = (
+        np.sqrt(np.diag(model.variance_coefficient))
+    )
+
+    model.z_stat_coefficient = (
+        model.theta / model.std_error_coefficient
+    )
+
+    model.p_value_coefficient = (
+        2 * (1 - norm.cdf(abs(model.z_stat_coefficient)))
+    )
+
+    z_crit = (
+        norm.ppf(1 - model.alpha / 2)
+    )
+
+    model.ci_low, model.ci_high = (
+        model.theta - z_crit * model.std_error_coefficient, 
+        model.theta + z_crit * model.std_error_coefficient
+    )
 
 
-def _cond_warn(cond: float):
+def cond_warn(cond: float):
     warnings.warn(
         f"\nHessian matrix is ill-conditioned (cond={cond:.2e}).\n"
         f"Results may be unreliable. Consider:\n"
@@ -130,7 +204,7 @@ def _cond_warn(cond: float):
         stacklevel=5
     )
 
-def _conv_warn(max_iter: int):
+def conv_warn(max_iter: int):
     warnings.warn(
         f"\nOptimization did not converge after {max_iter} iterations.\n"
         f"Consider:\n"
@@ -142,7 +216,7 @@ def _conv_warn(max_iter: int):
         stacklevel=5
     )
 
-def _separation_warn(max_coef: float):
+def separation_warn(max_coef: float):
     warnings.warn(
         f"\nLarge coefficients detected (max |θ| > {max_coef:.2f}).\n"
         f"This may indicate separation in the data:\n"

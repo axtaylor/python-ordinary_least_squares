@@ -20,13 +20,13 @@ def summary(*args):
         f"{'='*format_length}\n"
         f"{(
             "OLS Regression Results"
-            if models[0].model_type == "ols" else
+            if models[0].model_type == "linear" else
             "Logistic Regression Results"
-            if models[0].model_type == "mle" else
+            if models[0].model_type == "logit" else
             "Multinomial Regression Results"
-            if models[0].model_type == "multinomial" else
+            if models[0].model_type == "logit_multinomial" else
             "Ordinal Regression Results"
-            if models[0].model_type == "ordinal" else
+            if models[0].model_type == "logit_ordinal" else
             ValueError(f"Unknown model type: {models[0].model_type}")
             )}\n"
         f"{'-'*format_length}\n"
@@ -34,36 +34,36 @@ def summary(*args):
         f"{'-'*format_length}\n"
     )
 
-    feature_names = model.feature_names
-
-    if model.model_type == "ordinal":
-
-        p = len(model.feature_names)
-        remainder = model.theta.shape[0] - p
-
-        cutpoint_names = [f"{i}:{i+1}" for i in range(remainder)]
-
-        feature_names = np.concatenate([
-            np.array(model.feature_names),
-            np.array(cutpoint_names)
-    ])
-
+    old_feature_names = []
     all_features = []
     for model in models:
-        for feature in feature_names:
+
+        if model.model_type == "logit_ordinal":
+
+            old_feature_names.append(model.feature_names)
+
+            p = len(model.feature_names)
+            remainder = model.theta.shape[0] - p
+
+            model.feature_names = np.concatenate([
+                np.array(model.feature_names),
+                np.array([f"{i}:{i+1}" for i in range(remainder)])
+            ])
+
+        for feature in model.feature_names:
             if feature not in all_features:
                 all_features.append(feature)
 
     rows = []
 
-    if not models[0].model_type == "multinomial":
+    if not models[0].model_type == "logit_multinomial":
         for feature in all_features:
             coef_row = f"{feature:<{col_span}}"
             se_row = " " * col_span
 
             for model in models:
-                if feature in feature_names:
-                    feature_index = list(feature_names).index(feature)
+                if feature in model.feature_names:
+                    feature_index = list(model.feature_names).index(feature)
                     coef = model.theta[feature_index]
                     se = model.std_error_coefficient[feature_index]
                     p = model.p_value_coefficient[feature_index]
@@ -140,7 +140,7 @@ def summary(*args):
             rows.append(f"{'-'*format_length}")
 
 
-    if model.model_type == "ols":
+    if model.model_type == "linear":
         stats_lines = [
             ("R-squared", "r_squared"),
             ("Adjusted R-squared", "r_squared_adjusted"),
@@ -155,7 +155,7 @@ def summary(*args):
             ("MSE", "mse"),
         ]
         
-    if model.model_type in ["mle", "multinomial", "ordinal"]:
+    if model.model_type in ["logit", "logit_multinomial", "logit_ordinal"]:
          stats_lines = [
             ("Accuracy", "classification_accuracy"),
             ("Pseudo R-squared", "pseudo_r_squared"),
@@ -169,7 +169,6 @@ def summary(*args):
             ("BIC", "bic")
         ]
 
-
     stats = f"\n{'-'*format_length}\n"
 
     for label, attr in stats_lines:
@@ -177,6 +176,12 @@ def summary(*args):
         for model in models:
             stat_row += f"{(attr(model) if callable(attr) else getattr(model, attr)):>{col_width}.3f}"
         stats += stat_row + "\n"
+    
+    # Reset feature names to remove the ordinal 
+    if models[0].model_type == "logit_ordinal":
+        for i, model in enumerate(models):
+            model.feature_names = old_feature_names[i]
+
 
     return (
         header +

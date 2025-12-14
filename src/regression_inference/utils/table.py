@@ -1,23 +1,23 @@
 import numpy as np
 from typing import List
 
-def _inference_table(model) -> List[dict[str: float]]:
+def inference_table(model) -> List[dict[str: float]]:
 
     stat, model_stat = (
         ("t_statistic", model.t_stat_coefficient)
-        if model.model_type == "ols" else
+        if model.model_type == "linear" else
         ("z_statistic", model.z_stat_coefficient)
-        if model.model_type in ["mle", "multinomial", "ordinal"] else
+        if model.model_type in ["logit", "logit_multinomial", "logit_ordinal"] else
         ValueError("Unknown model type")
     )
 
     feature_names = model.feature_names
 
-    if model.model_type == "multinomial":
+    if model.model_type == "logit_multinomial":
         
         return _inference_table_multinomial(model, stat, model_stat)
     
-    if model.model_type == "ordinal":
+    if model.model_type == "logit_ordinal":
 
         p = len(model.feature_names)
         remainder = model.theta.shape[0] - p
@@ -32,12 +32,12 @@ def _inference_table(model) -> List[dict[str: float]]:
     return [
         {
             "feature": feature,
-            'coefficient': _outputFormatting(coefficient),
-            'std_error': _outputFormatting(se),
+            'coefficient': table_format(coefficient),
+            'std_error': table_format(se),
             f'{stat}': np.round(statistic, 4),
             'P>|t|': f'{p:.3f}',
-            f'ci_low_{model.alpha}': _outputFormatting(low),
-            f'ci_high_{model.alpha}': _outputFormatting(high),
+            f'ci_low_{model.alpha}': table_format(low),
+            f'ci_high_{model.alpha}': table_format(high),
         }
     for feature, coefficient, se, statistic, p, low, high in
     zip(
@@ -65,18 +65,18 @@ def _inference_table_multinomial(model, stat_name: str, model_stat: np.ndarray) 
             results.append({
                 "feature": feature_label,
                 "class": class_label,
-                'coefficient': _outputFormatting(model.theta[feature_idx, class_idx]),
-                'std_error': _outputFormatting(model.std_error_coefficient[feature_idx, class_idx]),
+                'coefficient': table_format(model.theta[feature_idx, class_idx]),
+                'std_error': table_format(model.std_error_coefficient[feature_idx, class_idx]),
                 f'{stat_name}': np.round(model_stat[feature_idx, class_idx], 4),
                 'P>|z|': f'{model.p_value_coefficient[feature_idx, class_idx]:.3f}',
-                f'ci_low_{model.alpha}': _outputFormatting(model.ci_low[feature_idx, class_idx]),
-                f'ci_high_{model.alpha}': _outputFormatting(model.ci_high[feature_idx, class_idx]),
+                f'ci_low_{model.alpha}': table_format(model.ci_low[feature_idx, class_idx]),
+                f'ci_high_{model.alpha}': table_format(model.ci_high[feature_idx, class_idx]),
             })
     
     return results
 
 
-def _outputFormatting(value: float) -> str:
+def table_format(value: float) -> str:
 
     if abs(value) > 0.0001:
         return str(np.round(value, 4))
