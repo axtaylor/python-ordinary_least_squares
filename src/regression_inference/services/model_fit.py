@@ -106,7 +106,7 @@ def fit(
         if model.model_type == "logit_ordinal":
             fit_logit_ordinal_cuda.accelerated_ordinal_logit(model, adj_cutpoints, max_iter, tol)
 
-        if model.model_type == "logit_multinomial":
+        elif model.model_type == "logit_multinomial":
             fit_logit_multinomial_cuda.accelerated_multinomial_logit(model, max_iter, tol)
 
         else:
