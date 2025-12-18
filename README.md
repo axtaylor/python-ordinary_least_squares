@@ -64,8 +64,10 @@ Fit models with the parameter `cuda = True` to enable hardware GPU acceleration.
 model = OrdinalLogisticRegression().fit(X, y, cuda=True)
 ```
 
-Hardware acceleration can reduce fit time by over 95% on high dimensional data. Model trained on X with shape (950000, 40) converges in ~7 seconds with CUDA, compared to
-45 minutes CPU bound.
+```py
+model = MultinomialLogisticRegression().fit(X, y, cuda=True)
+```
+
 
 ---
 ### Documentation / How To

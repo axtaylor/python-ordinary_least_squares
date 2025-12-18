@@ -6,6 +6,7 @@ import numpy as np
 try: 
     import cupy as cp
     from ..services import fit_logit_ordinal_cuda
+    from ..services import fit_logit_multinomial_cuda
     CUDA = True
 except ImportError:
     CUDA = False
@@ -104,6 +105,9 @@ def fit(
         
         if model.model_type == "logit_ordinal":
             fit_logit_ordinal_cuda.accelerated_ordinal_logit(model, adj_cutpoints, max_iter, tol)
+
+        if model.model_type == "logit_multinomial":
+            fit_logit_multinomial_cuda.accelerated_multinomial_logit(model, max_iter, tol)
 
         else:
             raise ValueError(f"CUDA Not supported for model type: {model.model_type}")

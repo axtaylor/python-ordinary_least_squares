@@ -1,7 +1,22 @@
 import numpy as np
 from scipy.stats import t as t_dist, norm
 
+try:
+    import cupy as cp
+    from ..utils import cuda_conversion
+    CUDA = True
+except ImportError:
+    CUDA = False
+    pass
+
+
 def robust_se(model, type, apply=False):
+
+    if apply:
+        if CUDA:
+            if hasattr(model, 'cuda'):
+                cuda_conversion.to_numpy(model, freeze=False)
+            
 
     '''LogisticRegression() Predictor'''
 

@@ -187,6 +187,7 @@ class MultinomialLogisticRegression(BaseClassifier):
     n_features:     Optional[int] = None
     y_classes:      Optional[np.ndarray] = field(default=None, repr=False)
     y_encoded:      Optional[np.ndarray] = field(default=None, repr=False)
+    cuda           :    bool = field(default=False, repr=True)
 
     
 
