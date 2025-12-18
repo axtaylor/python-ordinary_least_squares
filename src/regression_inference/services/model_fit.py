@@ -1,8 +1,16 @@
 from typing import Optional
 from ..utils import validate
 from ..services import fit_linear, fit_logit, fit_logit_ordinal, fit_logit_multinomial
-
 import numpy as np
+
+try: 
+    import cupy as cp
+    from ..services import fit_logit_ordinal_cuda
+    CUDA = True
+except ImportError:
+    CUDA = False
+    pass
+
 
 def get_featureLabel(X, feature_names):
     '''
@@ -37,9 +45,10 @@ def fit(
         feature_names:  Optional[list[str]],
         target_name:    Optional[str],
         alpha:          float = 0.05,
-        max_iter:       Optional[int] = 100,
-        tol:            Optional[float] = 1e-8,
-        adj_cutpoints:  Optional[bool] = False,
+        max_iter:       int = 100,
+        tol:            float = 1e-8,
+        adj_cutpoints:  bool = False,
+        cuda:           bool = False,
     ):
 
 
@@ -69,17 +78,35 @@ def fit(
         model.X.shape[0] - model.X.shape[1]
     )
 
-    if model.model_type == "linear":
-        fit_linear.internal_linear(model)
+    if not cuda:
 
-    elif model.model_type == "logit":
-        fit_logit.internal_logit(model, max_iter, tol)
+        if model.model_type == "linear":
+            fit_linear.internal_linear(model)
 
-    elif model.model_type == "logit_multinomial":
-        fit_logit_multinomial.internal_multinomial_logit(model, max_iter, tol)
+        elif model.model_type == "logit":
+            fit_logit.internal_logit(model, max_iter, tol)
+
+        elif model.model_type == "logit_multinomial":
+            fit_logit_multinomial.internal_multinomial_logit(model, max_iter, tol)
+
+        elif model.model_type == "logit_ordinal":
+            fit_logit_ordinal.internal_ordinal_logit(model, adj_cutpoints, max_iter, tol)
+
+    elif cuda:
+
+        if not CUDA:
+            raise ImportError(
+                f"Module not loaded 'cupy'.\n"
+                f"If installed, check if CUDA toolkit is detected at runtime.\n"
+        )
+
+        model.cuda = True
         
-    elif model.model_type == "logit_ordinal":
-        fit_logit_ordinal.internal_ordinal_logit(model, adj_cutpoints, max_iter, tol)
+        if model.model_type == "logit_ordinal":
+            fit_logit_ordinal_cuda.accelerated_ordinal_logit(model, adj_cutpoints, max_iter, tol)
+
+        else:
+            raise ValueError(f"CUDA Not supported for model type: {model.model_type}")
 
     else:
         raise ValueError(f"Unknown model_type: {model.model_type}")

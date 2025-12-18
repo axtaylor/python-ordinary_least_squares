@@ -56,13 +56,13 @@ class Model(ABC):
         if not self.is_fitted:
             raise ValueError("Model is not fitted. Call 'fit' with arguments before using this method.")
         
-    def __freeze(self) -> None:
+    def freeze(self) -> None:
         self.frozen = True
 
     def post_fit(self, cov_type: Optional[str]) -> None:
         if cov_type:
             model_robust_cov.robust_se(self, type=cov_type, apply=True)
-        self.__freeze()
+        self.freeze()
     
     @abstractmethod
     def fit(
@@ -158,9 +158,10 @@ class BaseClassifier(Model):
         max_iter:       int = 100,
         tol:            float = 1e-8,
         adj_cutpoints:  bool = False,
+        cuda:           bool = False,
     ) -> 'BaseClassifier':
         
-        model_fit.fit(self, X, y, feature_names, target_name, alpha, max_iter, tol, adj_cutpoints)
+        model_fit.fit(self, X, y, feature_names, target_name, alpha, max_iter, tol, adj_cutpoints, cuda)
         self.post_fit(cov_type)
         return self
 
@@ -197,3 +198,4 @@ class OrdinalLogisticRegression(MultinomialLogisticRegression):
 
     theta_cutpoints:    Optional[np.ndarray] = field(default=None, repr=False)
     alpha_cutpoints:    Optional[np.ndarray] = field(default=None, repr=False)
+    cuda           :    bool = field(default=False, repr=True)

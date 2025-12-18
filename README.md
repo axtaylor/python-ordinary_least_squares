@@ -9,38 +9,68 @@
 pip install regression-inference
 ```
 
-Python packaged designed for optimized inference workflows with Linear, Logistic, Multinomial Logistic, and Ordinal Logistic Regressions.
+Python packaged designed for statistical inference in machine learning, econometrics, and research, with support for hardware accelerated training.
 
-### Prerequsites
+
+---
+### Features
+
+
+- Linear Regression, Logistic Regression, Multinomial Logistic Regression, and Ordinal Logistic Regression model fitting.
+
+- Automatic inferential statistics for model predictions, standard errors, t/z statistic,
+significance, confidence ranges.
+
+- Support for accelerated model training using CUDA.
+
+- Modular regression tables.
+
+- Less overhead than other econometrics and machine learning packages.
+
+
+---
+### Dependencies
 
 `numpy` and `scipy` are required as dependencies in `regression-inference`
 
 ```
-numpy >=2.0.0
-scipy >=1.15.0
+numpy>=2.0.0
+scipy>=1.15.0
 ```
 
-`pandas` is optional but recommended for formatting the dictionary outputs into `pd.DataFrame` and `pd.Series` objects.
+
+Using `pandas` is optional but recommended.
+
+---
+### Hardware Acceleration with CUDA
+
+CUDA acceleration can be used for model training on supported hardware.
 
 
-### Usage
+[CuPy](https://cupy.dev/) is a required dependency for hardware acceleration, it is not installed with `regression-inference` by default. Additionally, the [CUDA Toolkit](https://developer.nvidia.com/cuda/toolkit) is a 
+required dependency unless `cupy` is installed from `conda-forge`.
 
 
-Import all utilities:
 
-```python
-from regression_inference import *
+```
+cupy-cuda13x=13.6.0
 ```
 
-Import select utilities:
 
-```python
-from regression_inference import LinearRegression, LogisticRegression, MultinomialLogisticRegression, OrdinalLogisticRegression, summary
+
+Fit models with the parameter `cuda = True` to enable hardware GPU acceleration.
+
+```py
+model = OrdinalLogisticRegression().fit(X, y, cuda=True)
 ```
 
-### Documentation
+Hardware acceleration can reduce fit time by over 95% on high dimensional data. Model trained on X with shape (950000, 40) converges in ~7 seconds with CUDA, compared to
+45 minutes CPU bound.
 
-See the provided notebooks on GitHub for example workflows.
+---
+### Documentation / How To
+
+See the provided [notebooks](https://github.com/axtaylor/python-ordinary_least_squares/tree/main/tests/notebooks) on GitHub for example workflows.
 
 ```
 /tests/notebooks/linear_regression_example.ipynb
@@ -52,19 +82,25 @@ See the provided notebooks on GitHub for example workflows.
 /tests/notebooks/ordinal_regression_example.ipynb
 ```
 
-### Regression Outputs
+---
+### Import Libraries
 
-Stacked outputs using summary
 
-```py
-print(summary(model, robust_model))
+```python
+from regression_inference import LinearRegression, LogisticRegression, MultinomialLogisticRegression, OrdinalLogisticRegression, summary
 ```
+
+
+---
+### Ordinary Least Squares Regression Output
+
+
 
 ```
 ==================================================
 OLS Regression Results
 --------------------------------------------------
-Dependent:                     educ    robust educ
+Dependent:                     educ     robust_edu
 --------------------------------------------------
  
 const                     7.3256***      7.3256***
@@ -334,52 +370,26 @@ BIC                                  3064.590
 *p<0.1; **p<0.05; ***p<0.01
 ```
 
+---
 ### Coefficient Inference Table
 
-Generate an inference table on fitted model objects. 
+Inference tables can be generated for the model features.
 
-The inference table can be converted to a `pd.DataFrame` object.
+
 ```py
 pd.DataFrame(model.inference_table())
 ```
 
-```
-[Out]: [{'feature': 'const',
-         'coefficient': np.float64(7.3256),
-         'std_error': np.float64(0.3684),
-         't_statistic': np.float64(19.887),
-         'P>|t|': '0.000',
-         'ci_low_0.05': np.float64(6.603),
-         'ci_high_0.05': np.float64(8.048)},
-        {'feature': 'paeduc',
-         'coefficient': np.float64(0.2144),
-         'std_error': np.float64(0.0241),
-         't_statistic': np.float64(8.8796),
-         'P>|t|': '0.000',
-         'ci_low_0.05': np.float64(0.167),
-         'ci_high_0.05': np.float64(0.262)},
-        {'feature': 'maeduc',
-         'coefficient': np.float64(0.2569),
-         'std_error': np.float64(0.0271),
-         't_statistic': np.float64(9.4725),
-         'P>|t|': '0.000',
-         'ci_low_0.05': np.float64(0.204),
-         'ci_high_0.05': np.float64(0.31)},
-        {'feature': 'age',
-         'coefficient': np.float64(0.0241),
-         'std_error': np.float64(0.0043),
-         't_statistic': np.float64(5.5789),
-         'P>|t|': '0.000',
-         'ci_low_0.05': np.float64(0.016),
-         'ci_high_0.05': np.float64(0.033)}]
-```
+
 
 ![](./static/3.png)
 
 
+---
 ### Predictions
 
 Extract the order of feature names using `feature_names[:1]`
+
 ```
 model.feature_names[1:]
 ```
@@ -387,7 +397,8 @@ model.feature_names[1:]
 [Out]: Index(['paeduc', 'maeduc', 'age'], dtype='object')
 ```
 
-Predict in the order of the feature names.
+Predict in the order of the features without a constant.
+
 ```
 model.predict(np.array([[0, 0, 0], ]))
 ```
@@ -395,50 +406,53 @@ model.predict(np.array([[0, 0, 0], ]))
 [Out]: array([7.32564767])
 ```
 
-### Inference Statistics for Predictions
+---
+### Inference
 
 
-Use `return_table = True` to generate a dictionary of prediction statistics
-instead of an array of values.
+Use `return_table = True` to include inference statistics.
 
 
 
 ```py
+# Range over values of a feature
+
 prediction_set = [
     (np.array([[i, X['maeduc'].mean(), X['age'].mean()],]))
     for i in range(int(X['paeduc'].min()), int(X['paeduc'].max())+1)
     ] 
+    
 predictions = pd.concat([pd.DataFrame(model.predict(i, return_table=True)) for i in prediction_set], ignore_index=True)
-predictions
 ```
 
 ![](./static/1.png)
 
-**Predictions at Specific Feature Values**
+
 
 ```py
+# Predict discrete values
+
 prediction_set = [
     np.array([[2.66, 20.0, 0.0]]),
     np.array([[2.89, 22.0, 0.0]]),
     np.array([[3.28, 24.0, 0.0]]),
     np.array([[2.92, 12.0, 0.0]]),
 ]
+
 predictions = pd.concat([pd.DataFrame(model.predict(test_set, return_table=True)) for test_set in prediction_set], ignore_index=True)
-predictions
 ```
 
 ![](./static/2.png)
 
 
+---
 ### Variance Inflation Factor
 
-Variance Inflation Factor can be generated for the model's features.
+Variance Inflation Factor table can be generated for the model features.
 
 ```py
 model.variance_inflation_factor()
 ```
-
-Dictionary output can be converted into a `pd.DataFrame` object
 
 
 ```
@@ -446,6 +460,7 @@ Dictionary output can be converted into a `pd.DataFrame` object
  'VIF': array([2.0233, 2.0285, 1.0971])}
 ```
 
+---
 ### Heteroskedastic-Robust Standard Errors
 
 Set the covariance matrix on fit using `cov_type`:
