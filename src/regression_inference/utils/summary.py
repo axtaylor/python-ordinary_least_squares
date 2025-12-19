@@ -16,22 +16,28 @@ def summary(*args):
 
     format_length = col_span + (len(models)*col_width)
 
+    TITLE_MAP = {
+    "linear": "OLS Regression Results",
+    "logit": "Logistic Regression Results",
+    "logit_multinomial": "Multinomial Regression Results",
+    "logit_ordinal": "Ordinal Regression Results",
+    }
+
+    model_type = models[0].model_type
+
+    try:
+        title = TITLE_MAP[model_type]
+    except KeyError:
+        raise ValueError(f"Unknown model type: {model_type}")
+
     header = (
-        f"{'='*format_length}\n"
-        f"{(
-            "OLS Regression Results"
-            if models[0].model_type == "linear" else
-            "Logistic Regression Results"
-            if models[0].model_type == "logit" else
-            "Multinomial Regression Results"
-            if models[0].model_type == "logit_multinomial" else
-            "Ordinal Regression Results"
-            if models[0].model_type == "logit_ordinal" else
-            ValueError(f"Unknown model type: {models[0].model_type}")
-            )}\n"
-        f"{'-'*format_length}\n"
-        f"{'Dependent:':<{col_span}}" + "".join(f"{m.target:>{col_width}}" for m in models) + "\n"
-        f"{'-'*format_length}\n"
+        f"{'=' * format_length}\n"
+        f"{title}\n"
+        f"{'-' * format_length}\n"
+        f"{'Dependent:':<{col_span}}"
+        + "".join(f"{m.target:>{col_width}}" for m in models)
+        + "\n"
+        f"{'-' * format_length}\n"
     )
 
     old_feature_names = []
@@ -99,7 +105,7 @@ def summary(*args):
         for j in range(J):
             
             col_num = int(model.y_classes[j+1])
-            rows.append(f"{f"{'Class:':<{col_span}}" + f"{col_num:>{col_width}}"}\n")
+            rows.append(f"{'Class:':<{col_span}}{col_num:>{col_width}}\n")
            
 
             for feature in all_features:
