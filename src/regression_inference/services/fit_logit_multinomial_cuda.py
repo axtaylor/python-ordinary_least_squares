@@ -141,42 +141,37 @@ def standard_fit(model, y_enc: cp.ndarray, n_samples: int, max_iter: int, tol: f
 
 
 def standard_hessian(X: cp.ndarray, probs: cp.ndarray) -> cp.ndarray:
-    n_samples, n_features = X.shape
+
+    _, n_features = X.shape
+
     n_classes = probs.shape[1]
+
     n_alt = n_classes - 1
     
-    # Extract probabilities for non-reference classes
     P = probs[:, 1:]  # shape: (n_samples, n_alt)
     
-    # Compute weight matrices for all samples at once
-    # Diagonal terms: diag(p_i)
-    W_diag = P  # shape: (n_samples, n_alt)
-    
-    # Off-diagonal terms: -p_i * p_j^T
-    # We need to compute this for the full block structure
-    
-    # Method: Use einsum for efficient computation
-    # For each sample i: V_i = diag(p_i) - p_i * p_i^T
-    # Then H = sum_i kron(V_i, x_i * x_i^T)
-    
-    # Vectorized approach using broadcasting
-    # Shape the computation to avoid explicit loops
-    
-    # Compute X^T W X in block structure
-    H = cp.zeros((n_features * n_alt, n_features * n_alt))
+    H = (
+        cp.zeros((n_features * n_alt, n_features * n_alt))
+    )
     
     for j in range(n_alt):
+
         for k in range(n_alt):
-            # Block (j,k) contribution
+
+            # (j,k) contribution
             if j == k:
+
                 # Diagonal block: X^T diag(p_j * (1 - p_j)) X
                 w = P[:, j] * (1 - P[:, j])
+
             else:
+
                 # Off-diagonal block: -X^T diag(p_j * p_k) X
                 w = -P[:, j] * P[:, k]
+  
+
+            X_weighted = X.T * w    # (n_features, n_samples)
             
-            # Weighted X^T X
-            X_weighted = X.T * w  # Broadcasting: (n_features, n_samples)
             block = X_weighted @ X  # (n_features, n_features)
             
             # Place in H
