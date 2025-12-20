@@ -1,41 +1,28 @@
 '''
 Reassign CUDA objects to numpy arrays
+
+freeze = False 
+
+    - When applying robust covariance pre-fit
+
+freeze = True (default)
+
+    - Any conversions done post fit.
+
 '''
 import cupy as cp
 
 def to_numpy(model, freeze=True) -> None:
 
     model.frozen = False
-          
-    if isinstance(model.X, cp.ndarray):
-        model.X = model.X.get()
 
-    if isinstance(model.coefficients, cp.ndarray):
-        model.coefficients = model.coefficients.get()
-    
-    if isinstance(model.intercept, cp.ndarray):
-        model.intercept = model.intercept.get()
+    for attr in vars(model):
 
-    if isinstance(model.theta, cp.ndarray):
-        model.theta = model.theta.get()
+        value = getattr(model, attr)
 
-    if hasattr(model, 'alpha_cutpoints'):
-        if isinstance(model.alpha_cutpoints , cp.ndarray):
-            model.alpha_cutpoints = model.alpha_cutpoints.get()
+        if isinstance(value, cp.ndarray):
 
-    if hasattr(model, 'y_encoded'):
-        if isinstance(model.y_encoded , cp.ndarray):
-            model.y_encoded = model.y_encoded.get()
-
-    if hasattr(model, 'probabilities'):
-        if isinstance(model.probabilities , cp.ndarray):
-            model.probabilities = model.probabilities.get()
-
-    if isinstance(model.n_classes, cp.ndarray):
-        model.n_classes = model.n_classes.get()
-
-    if isinstance(model.xtWx_inv, cp.ndarray):
-        model.xtWx_inv = model.xtWx_inv.get()
+            setattr(model, attr, value.get())
 
     if freeze:
         model.freeze()
