@@ -1,9 +1,8 @@
 # regression-inference
 
-![PyPI version](https://img.shields.io/pypi/v/regression-inference)
-![License](https://img.shields.io/github/license/axtaylor/python-ordinary_least_squares?color)
+[![PyPI version](https://img.shields.io/pypi/v/regression-inference)](https://pypi.org/project/regression-inference/)
+[![License](https://img.shields.io/github/license/axtaylor/python-ordinary_least_squares?color)](https://github.com/axtaylor/python-ordinary_least_squares/blob/main/LICENSE)
 
-[https://pypi.org/project/regression-inference/](https://pypi.org/project/regression-inference/)
 
 ```
 pip install regression-inference
@@ -18,14 +17,12 @@ Python packaged designed for statistical inference in machine learning, economet
 
 - Linear Regression, Logistic Regression, Multinomial Logistic Regression, and Ordinal Logistic Regression model fitting.
 
-- Automatic inferential statistics for model predictions, standard errors, t/z statistic,
-significance, confidence ranges.
+- Full inference statistics for model predictions including standard errors, t/z,
+significance, and confidence ranges.
 
-- Support for accelerated model training using CUDA.
+- Support for accelerated model training.
 
 - Modular regression tables.
-
-- Less overhead than other econometrics and machine learning packages.
 
 
 ---
@@ -52,20 +49,17 @@ required dependency unless `cupy` is installed from `conda-forge`.
 
 
 
-```
-cupy-cuda13x=13.6.0
-```
 
 
 
 Fit models with the parameter `cuda = True` to enable hardware GPU acceleration.
 
 ```py
-model = OrdinalLogisticRegression().fit(X, y, cuda=True)
+model = OrdinalLogisticRegression().fit(X, y, cuda = True)
 ```
 
 ```py
-model = MultinomialLogisticRegression().fit(X, y, cuda=True)
+model = MultinomialLogisticRegression().fit(X, y, cuda = True)
 ```
 
 
@@ -85,7 +79,7 @@ See the provided [notebooks](https://github.com/axtaylor/python-ordinary_least_s
 ```
 
 ---
-### Import Libraries
+### Classes and Functions
 
 
 ```python
