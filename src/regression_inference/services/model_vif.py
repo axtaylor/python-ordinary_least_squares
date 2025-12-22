@@ -1,23 +1,12 @@
 import numpy as np
 
-try:
-    import cupy as cp
-    from ..utils import cuda_conversion
-    CUDA = True
-except ImportError:
-    CUDA = False
-    pass
-
 def variance_inflation_factor(model):
 
-    if CUDA:
-        if hasattr(model, 'cuda'):
-            cuda_conversion.to_numpy(model)
-
-    if model.model_type == "logit_ordinal":
-        X = model.X
-    else:
-        X = model.X[:,1:]
+    X = (
+        model.X
+        if model.model_type == "logit_ordinal" else
+        model.X[:,1:]
+    )
 
     n_features, vif = X.shape[1], []
 
@@ -72,6 +61,10 @@ def variance_inflation_factor(model):
         )
 
     return ({
-        'feature': model.feature_names if model.model_type == "logit_ordinal" else model.feature_names[1:],
+        'feature': (
+            model.feature_names
+            if model.model_type == "logit_ordinal" else
+            model.feature_names[1:]
+        ),
         'VIF': np.round(vif, 4)
     })

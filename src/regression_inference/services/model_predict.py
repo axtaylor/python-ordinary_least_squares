@@ -1,15 +1,6 @@
 import numpy as np    
 from scipy.stats import t as t_dist, norm
 
-try:
-    import cupy as cp
-    from ..utils import cuda_conversion
-    CUDA = True
-except ImportError:
-    CUDA = False
-    pass
-
-
 PROB_CLIP_MIN = 1e-15
 PROB_CLIP_MAX = 1 - 1e-15
 
@@ -17,17 +8,8 @@ def predict(model, X, alpha, return_table):
 
     X = np.asarray(X, dtype=float)
 
-
     '''
-    GPU check for OrdinalRegression()
-    '''
-    if CUDA:
-        if hasattr(model, 'cuda'):
-            cuda_conversion.to_numpy(model)
-
-
-    '''
-    Predictor for LogisticRegression()
+    sigmoid: Predictor for LogisticRegression()
     '''
     def sigmoid(z):
         return np.where(
@@ -38,7 +20,7 @@ def predict(model, X, alpha, return_table):
 
 
     '''
-    Predictor for MultinomialRegression()
+    softmax: Predictor for MultinomialLogisticRegression()
     '''
     def softmax(Z: np.ndarray) -> np.ndarray:
 
@@ -50,7 +32,7 @@ def predict(model, X, alpha, return_table):
     
     
     '''
-    Predictor for OrdinalRegression()
+    gradient: Predictor for OrdinalLogisticRegression()
     '''
     def predict_prob(X, beta, alpha, n_classes):
             
@@ -76,7 +58,12 @@ def predict(model, X, alpha, return_table):
 
 
     '''
-    Return only Prediction as integer
+    return_table = False (Default)
+
+        - Return the prediction as a float 
+
+        - Raise ValueError if model_type is not set
+
     '''
     if not return_table:
 
@@ -89,10 +76,12 @@ def predict(model, X, alpha, return_table):
             if model.model_type == "logit" else
 
             softmax(
-                np.column_stack([
-                    np.zeros(X.shape[0]),
-                    np.asarray(X, dtype=float) @ model.coefficients + model.intercept
-                ])
+                np.column_stack(
+                    [
+                        np.zeros(X.shape[0]),
+                        np.asarray(X, dtype=float) @ model.coefficients + model.intercept
+                    ]
+                )
             )
             if model.model_type == "logit_multinomial" else
 
@@ -104,15 +93,23 @@ def predict(model, X, alpha, return_table):
             )
             if model.model_type == "logit_ordinal" else
 
-            ValueError(f"Unknown model type: {model.model_type}")
+            ValueError(f"Model type: {model.model_type} is unexpected.")
         )
 
 
 
     '''
-    Tabular Predictions shared configurations
-    '''
+    LinearRegression(), LogisticRegression(), MultinomialLogisticRegression()
 
+        - Assemble hashmap of feature names and values of the prediction
+
+    OrdinalLogisticRegression()
+
+        - Ordinal has no intercept, breaking model.feature_names[1:]
+
+        - Ordinal performs assembly in respective block
+
+    '''
     if not model.model_type == "logit_ordinal":
 
         prediction_features = {
@@ -120,23 +117,59 @@ def predict(model, X, alpha, return_table):
                 for name, value_at in zip(model.feature_names[1:], X[0])
         }
 
+
+    '''
+    LinearRegression(), LogisticRegression(), MultinomialLogisticRegression()
+        
+        - Insert the intercept term into the prediction
+
+    OrdinalLogisticRegression()
+
+        - Convert each prediction to 2D without intercept
+
+    '''
     X = (
         np.hstack([np.ones((X.shape[0], 1)), X])
         if not model.model_type == "logit_ordinal" else
         np.atleast_2d(X)
     )
 
+
+    '''
+    LinearRegression(), LogisticRegression()
+
+        - Share linear prediction function
+
+    MultinomialLogisticRegression(), OrdinalLogisticRegression()
+
+        - Prediction set in respective block
+    
+    '''
     if model.model_type in ["linear", "logit"]:
         prediction = X @ model.theta
         se_prediction = (np.sqrt((X @ model.variance_coefficient @ X.T)).item())
 
 
 
-    '''
-    Tabular Least Squares Predictions
-    '''
 
     if model.model_type == "linear":
+
+        '''
+        LinearRegression() Predictions
+
+            Computed already:
+
+            - Input hashmap
+            - Prediction value
+            - Standard error of prediction
+
+            Computed here:
+
+            - Confidence bands of prediction
+            - T statistic of prediction
+            - P value of prediction
+
+        '''
                 
         t_critical = t_dist.ppf(1 - alpha/2, model.degrees_freedom)
 
@@ -164,12 +197,25 @@ def predict(model, X, alpha, return_table):
         })
     
 
+    elif model.model_type == "logit":
 
-    '''
-    Tabular base Logit Predictions
-    '''
+        '''
+        LogisticRegression() Predictions
 
-    if model.model_type == "logit":
+            Computed already:
+
+            - Input hashmap
+            - Linear prediction value
+            - Standard error of prediction
+
+            Computed here:
+
+            - Predicted probability
+            - Confidence bands of prediction
+            - T statistic of prediction
+            - P value of prediction
+
+        '''
 
         prediction_prob = sigmoid(prediction)
 
@@ -207,13 +253,25 @@ def predict(model, X, alpha, return_table):
         })
 
 
+    elif model.model_type == "logit_multinomial":
 
+        '''
+        MultinomialLogisticRegression() Predictions
 
-    '''
-    Tabular Multinomial Logit Predictions
-    '''
+        Computed already:
 
-    if model.model_type == "logit_multinomial":
+        - Input hashmap
+
+        Computed here:
+
+        - Predicted value
+        - Predicted probabilities
+        - Initial CI and SE for reference class
+        - SE, Z, P, CIs for non-reference class
+
+        TODO: Work on methodology for reference class prediction
+
+        '''
 
         multinomial_classes, prediction_probs, prediction_linear, std_errors, z_statistics, p_values, ci_lows, ci_highs = (
             [],[],[],[],[],[],[],[]
@@ -329,14 +387,24 @@ def predict(model, X, alpha, return_table):
         }
 
       
-    
+    elif model.model_type == "logit_ordinal":
 
+        '''
+        OrdinalLogisticRegression() Predictions
 
+            Computed already:
 
-    '''
-    Tabular Ordinal Logit Predictions
-    '''
-    if model.model_type == "logit_ordinal":
+            - X as 2d array
+
+            Computed here:
+
+            - Input hashmap without intercept
+            - Predicted value
+            - Predicted probabilities
+            - Cumulative probabilities
+            - SE, Z, P, and CIs
+
+        '''
 
         prediction_features = {
                 name: f'{value_at.item():.2f}'
@@ -451,4 +519,7 @@ def predict(model, X, alpha, return_table):
             })
 
         return results
+    
+    else: 
+        raise ValueError(f"Model type: {model.model_type} is unexpected.")
     

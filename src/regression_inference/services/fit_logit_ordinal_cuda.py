@@ -2,6 +2,7 @@ import cupy as cp
 import numpy as np
 from scipy.stats import norm
 import warnings
+from ..utils import cuda_conversion
 
 PROB_CLIP_MIN = 1e-15
 PROB_CLIP_MAX = 1 - 1e-15
@@ -797,6 +798,8 @@ def model_params(model, adj_cutpoints: bool, y_enc: cp.ndarray) -> None:
     model.residuals = (
         (actual_class != predicted_class).astype(cp.float64)
     )
+
+    cuda_conversion.to_numpy(model)
 
 
 def transform_covariance(model) -> cp.ndarray:
