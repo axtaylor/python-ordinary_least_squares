@@ -1,5 +1,5 @@
 import numpy as np   
-from ..services.predict import predict_linear, predict_logit, predict_logit_multinomial, predict_logit_ordinal 
+from ..models.predict import predict_linear, predict_logit, predict_logit_multinomial, predict_logit_ordinal 
 from typing import Union
 
 def predict(model, X: np.ndarray, alpha: float, return_table: bool) -> Union[float, np.ndarray, dict, list[dict]]:

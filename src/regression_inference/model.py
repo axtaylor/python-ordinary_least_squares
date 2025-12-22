@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Union, ClassVar, Optional
 from abc import ABC, abstractmethod
-from .services import model_vif, model_robust_cov, model_predict, model_fit
+from .models import model_vif, model_robust_cov, model_predict, model_fit
 from .utils import table, summary
 import numpy as np
 
