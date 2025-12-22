@@ -10,10 +10,10 @@ try:
     CUDA = True
 except ImportError:
     CUDA = False
-    pass
 
 
 def get_featureLabel(X, feature_names):
+
     '''
     Feature labels are assigned in a hierarchy:
 
@@ -21,6 +21,7 @@ def get_featureLabel(X, feature_names):
 
     The assignment is always in order of the columns from the X array or dataframe
     '''
+
     return (
         ['const', *feature_names] if feature_names is not None
         else X.columns if hasattr(X, 'columns')
@@ -28,16 +29,19 @@ def get_featureLabel(X, feature_names):
     )
 
 def get_targetLabel(y, target_name):
+
     '''
     Target label is assigned in a hierarchy:
 
     User defined name -> Pandas series name -> Fallback name.
     '''
+
     return (
         target_name if target_name is not None
         else y.name if hasattr(y, 'name')
         else "Dependent"
     )
+
 
 def fit(
         model,
@@ -51,11 +55,6 @@ def fit(
         adj_cutpoints:  bool = False,
         cuda:           bool = False,
     ):
-
-
-    '''
-    Model fit helper for model delegation
-    '''
 
     X_array, y_array = (
         validate.validate(X, y, alpha, model.model_type)
@@ -79,6 +78,7 @@ def fit(
         model.X.shape[0] - model.X.shape[1]
     )
 
+
     if not cuda:
 
         if model.model_type == "linear":
@@ -93,27 +93,31 @@ def fit(
         elif model.model_type == "logit_ordinal":
             fit_logit_ordinal.internal_ordinal_logit(model, adj_cutpoints, max_iter, tol)
 
+        else:
+            raise ValueError(f"Model type: {model.model_type} is unexpected.")
+
+
     elif cuda:
 
         if not CUDA:
             raise ImportError(
-                f"Module not loaded 'cupy'.\n"
-                f"If installed, check if CUDA toolkit is detected at runtime.\n"
+                f"Could not find module 'cupy' in this Python environment..\n"
         )
 
         model.cuda = True
         
-        if model.model_type == "logit_ordinal":
-            fit_logit_ordinal_cuda.accelerated_ordinal_logit(model, adj_cutpoints, max_iter, tol)
-
-        elif model.model_type == "logit_multinomial":
+        if model.model_type == "logit_multinomial":
             fit_logit_multinomial_cuda.accelerated_multinomial_logit(model, max_iter, tol)
+        
+        elif model.model_type == "logit_ordinal":
+            fit_logit_ordinal_cuda.accelerated_ordinal_logit(model, adj_cutpoints, max_iter, tol)
 
         else:
             raise ValueError(f"CUDA Not supported for model type: {model.model_type}")
 
+
     else:
-        raise ValueError(f"Unknown model_type: {model.model_type}")
+        raise ValueError(f"Unexpected cuda specification: {cuda}")
     
     return model
 
