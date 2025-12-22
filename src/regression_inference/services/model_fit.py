@@ -1,12 +1,11 @@
 from typing import Optional
 from ..utils import validate
-from ..services import fit_linear, fit_logit, fit_logit_ordinal, fit_logit_multinomial
+from ..services.fit import fit_linear, fit_logit, fit_logit_ordinal, fit_logit_multinomial
 import numpy as np
 
 try: 
     import cupy as cp
-    from ..services import fit_logit_ordinal_cuda
-    from ..services import fit_logit_multinomial_cuda
+    from ..services.fit.accelerated_models import fit_logit_ordinal_cuda, fit_logit_multinomial_cuda
     CUDA = True
 except ImportError:
     CUDA = False

@@ -81,7 +81,7 @@ class Model(ABC):
             X:              np.ndarray,
             alpha:          float = 0.05,
             return_table:   bool  = False,
-    ) -> Union[np.ndarray, dict]:
+    ) -> Union[float, np.ndarray, dict, list[dict]]:
         
         self.__model_fitted()
         return model_predict.predict(self, X, alpha, return_table)

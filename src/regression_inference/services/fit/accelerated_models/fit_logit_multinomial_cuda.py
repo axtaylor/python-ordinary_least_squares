@@ -2,7 +2,6 @@ import numpy as np
 import cupy as cp
 import warnings
 from scipy.stats import norm
-from ..utils import cuda_conversion
 
 COND_THRESHOLD = 1e10
 PROB_CLIP_MIN = 1e-15
@@ -293,7 +292,12 @@ def model_params(model, y_enc: cp.ndarray):
 
     model.residuals = (model.y_encoded != predicted_class).astype(float)
 
-    cuda_conversion.to_numpy(model)
+    for attr in vars(model):
+        value = getattr(model, attr)
+
+        if isinstance(value, cp.ndarray):
+            setattr(model, attr, value.get())
+        
 
 
 
