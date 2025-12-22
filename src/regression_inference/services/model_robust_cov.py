@@ -1,38 +1,18 @@
 import numpy as np
 from scipy.stats import t as t_dist, norm
 
-try:
-    import cupy as cp
-    from ..utils import cuda_conversion
-    CUDA = True
-except ImportError:
-    CUDA = False
-    pass
-
-
 def robust_se(model, type, apply=False):
-
-    if apply:
-        if CUDA:
-            if hasattr(model, 'cuda'):
-                cuda_conversion.to_numpy(model, freeze=False)
-            
-
-    '''LogisticRegression() Predictor'''
-
-    def _sigmoid(z):
-        return np.where(
-            z >= 0,
-            1 / (1 + np.exp(-z)),
-            np.exp(z) / (1 + np.exp(z))
-    )
 
     n, k = model.X.shape
 
-
-    '''Linear leverage and squared residuals'''
-
     if model.model_type == "linear":
+
+        '''
+        LinearRegression()
+
+            - Leverage and squared residuals
+
+        '''
 
         stat_dist, stat_name = (t_dist, 't')
 
@@ -46,15 +26,25 @@ def robust_se(model, type, apply=False):
             model.residuals.reshape(-1, 1).flatten()**2
         )
 
+    elif model.model_type == "logit":
 
-    '''Logit leverage and squared residuals'''
+        '''
+        LogisticRegression()
 
-    if model.model_type == "logit":
+            - Leverage and squared residuals
+
+        '''
+        def sigmoid(z):
+            return np.where(
+                z >= 0,
+                1 / (1 + np.exp(-z)),
+                np.exp(z) / (1 + np.exp(z))
+        )
 
         stat_dist, stat_name = (norm, 'z')
 
         mu = (
-            _sigmoid(model.X @ model.theta)
+            sigmoid(model.X @ model.theta)
         )
 
         W = (
@@ -72,9 +62,14 @@ def robust_se(model, type, apply=False):
         sr = response_residuals**2
 
 
-    '''Multinomial Logit leverage and squared residuals'''
-        
-    if model.model_type == "logit_multinomial":
+    elif model.model_type == "logit_multinomial":
+
+        '''
+        MultinomialLogisticRegression()
+
+            - Leverage, non-scalar
+
+        '''  
 
         stat_dist, stat_name = (norm, 'z')
 
@@ -99,10 +94,20 @@ def robust_se(model, type, apply=False):
         )
 
         sr = None 
+    
+    else: 
+        raise ValueError(f"Model type: {model.model_type} is unexpected.")
 
 
     # Scalar residual models only
-    if sr is not None:    
+
+    if model.model_type in ["linear", "logit"]:   
+
+        '''
+        Robust standard errors for LinearRegression() and LogisticRegression()
+        ''' 
+
+        feature_names = model.feature_names
 
         HC_ = {
             "HC0": lambda sr, n_obs, k_regressors, leverage: sr,
@@ -112,7 +117,6 @@ def robust_se(model, type, apply=False):
         }
 
         '''Compute the diagonal only'''
-
         try:
 
             omega_diagonal = (
@@ -146,7 +150,7 @@ def robust_se(model, type, apply=False):
                     stat_dist.ppf(1 - model.alpha/2,model.degrees_freedom)
                 )
 
-            if model.model_type == "logit":
+            elif model.model_type == "logit":
 
                 robust_p = (
                     2 * (1 - stat_dist.cdf(abs(robust_stat)))
@@ -162,15 +166,21 @@ def robust_se(model, type, apply=False):
                 model.theta + crit * robust_se
             )
 
-        except KeyError:
+        except ValueError:
             raise ValueError("Select 'HC0', 'HC1', 'HC2', 'HC3'")
     
-    else:
 
-        # TODO - Full leverage 
+    elif model.model_type in ["logit_multinomial"]:
+
+        '''
+        Robust standard errors for MultinomialLogisticRegression()
+        ''' 
+
+        feature_names = (
+            list(model.feature_names)*((np.unique(model.y).shape[0])-1)
+        )
 
         p = model.X.shape[1]
-
         J = model.theta.shape[1]
         
         omega = np.zeros((p*J, p*J))
@@ -186,7 +196,7 @@ def robust_se(model, type, apply=False):
             scale = HC__[type]
 
             if scale is None:
-                raise ValueError(f"{type} not yet supported for logit_multinomial.")
+                raise ValueError(f"{type} not supported for {model.model_type}.")
             
             for i in range(n):
 
@@ -254,6 +264,8 @@ def robust_se(model, type, apply=False):
         except KeyError:
             raise ValueError("Select 'HC0', 'HC1', 'HC2', 'HC3'")
 
+    else:
+        raise ValueError(f"Model type: {model.model_type} is unexpected.")
 
 
     '''If 'cov_type' is set on model fitting update the covariance before attributes are frozen. '''
@@ -263,7 +275,7 @@ def robust_se(model, type, apply=False):
         if model.model_type == "linear":
             model.t_stat_coefficient = robust_stat
 
-        if model.model_type in ["logit", 'logit_multinomial']:
+        elif model.model_type in ["logit", 'logit_multinomial']:
             model.z_stat_coefficient = robust_stat
 
         model.variance_coefficient = robust_cov
@@ -272,11 +284,12 @@ def robust_se(model, type, apply=False):
         model.ci_low = robust_ci_low
         model.ci_high = robust_ci_high
 
+
     return {
-        "feature":                    model.feature_names,
-        "robust_se":                  robust_se,
-        f"robust_{stat_name}":        robust_stat,
-        "robust_p":                   robust_p,
-        f"ci_low_{model.alpha}":      robust_ci_low,
-        f"ci_high_{model.alpha}":     robust_ci_high,
+        "feature":                    feature_names,
+        "robust_se":                  robust_se.flatten(order="F")      if model.model_type == "logit_multinomial" else robust_se,
+        f"robust_{stat_name}":        robust_stat.flatten(order="F")    if model.model_type == "logit_multinomial" else robust_stat,
+        "robust_p":                   robust_p.flatten(order="F")       if model.model_type == "logit_multinomial" else robust_p,
+        f"ci_low_{model.alpha}":      robust_ci_low.flatten(order="F")  if model.model_type == "logit_multinomial" else robust_ci_low,
+        f"ci_high_{model.alpha}":     robust_ci_high.flatten(order="F") if model.model_type == "logit_multinomial" else robust_ci_high,
 }
