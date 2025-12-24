@@ -1,24 +1,28 @@
 from dataclasses import dataclass, field
-from typing import Union, ClassVar, Optional
+from typing import Union, ClassVar, Optional, List
 from abc import ABC, abstractmethod
 from .models import model_vif, model_robust_cov, model_predict, model_fit
 from .utils import table, summary
 import numpy as np
+
 
 @dataclass
 class Model(ABC):
 
     feature_names:          list[str] = field(default_factory=list)
     target:                 Optional[str] = None
-    X:                      Optional[np.ndarray] = field(default=None, repr=False)
-    y:                      Optional[np.ndarray] = field(default=None, repr=False)
+    X:                      Optional[np.ndarray] = field(
+        default=None, repr=False)
+    y:                      Optional[np.ndarray] = field(
+        default=None, repr=False)
     alpha:                  Optional[float] = None
     theta:                  Optional[np.ndarray] = field(default=None)
     coefficients:           Optional[np.ndarray] = field(default=None)
     intercept:              Optional[float] = None
     predictions:            Optional[np.ndarray] = field(default=None)
     degrees_freedom:        Optional[int] = None
-    residuals:              Optional[np.ndarray] = field(default=None, repr=False)
+    residuals:              Optional[np.ndarray] = field(
+        default=None, repr=False)
     log_likelihood:         Optional[float] = None
     aic:                    Optional[float] = None
     bic:                    Optional[float] = None
@@ -29,7 +33,8 @@ class Model(ABC):
     ci_high:                Optional[np.ndarray] = field(default=None)
 
     frozen:                 bool = field(default=False, repr=False)
-    MUTABLE_AFTER_FIT:      ClassVar[frozenset[str]] = frozenset({"feature_names", "target", "frozen"})
+    MUTABLE_AFTER_FIT:      ClassVar[frozenset[str]] = frozenset(
+        {"feature_names", "target", "frozen"})
 
     def __str__(self) -> str:
         self.__model_fitted()
@@ -42,7 +47,7 @@ class Model(ABC):
                 f"Model attributes are read-only once fit() is called."
             )
         super().__setattr__(name, value)
-        
+
     @property
     @abstractmethod
     def model_type(self) -> str:
@@ -51,11 +56,12 @@ class Model(ABC):
     @property
     def is_fitted(self) -> bool:
         return self.theta is not None
-    
+
     def __model_fitted(self) -> None:
         if not self.is_fitted:
-            raise ValueError("Model is not fitted. Call 'fit' with arguments before using this method.")
-        
+            raise ValueError(
+                "Model is not fitted. Call 'fit' with arguments before using this method.")
+
     def freeze(self) -> None:
         self.frozen = True
 
@@ -63,16 +69,16 @@ class Model(ABC):
         if cov_type:
             model_robust_cov.robust_se(self, type=cov_type, apply=True)
         self.freeze()
-    
+
     @abstractmethod
     def fit(
         self,
         X:             np.ndarray,
         y:             np.ndarray,
         feature_names: Optional[list[str]] = None,
-        target_name:   Optional[str]       = None,
-        cov_type:      Optional[str]       = None,
-        alpha:         float               = 0.05,
+        target_name:   Optional[str] = None,
+        cov_type:      Optional[str] = None,
+        alpha:         float = 0.05,
     ) -> 'Model':
         pass
 
@@ -80,9 +86,9 @@ class Model(ABC):
             self,
             X:              np.ndarray,
             alpha:          float = 0.05,
-            return_table:   bool  = False,
+            return_table:   bool = False,
     ) -> Union[float, np.ndarray, dict, list[dict]]:
-        
+
         self.__model_fitted()
         return model_predict.predict(self, X, alpha, return_table)
 
@@ -93,11 +99,10 @@ class Model(ABC):
     def variance_inflation_factor(self) -> dict:
         self.__model_fitted()
         return model_vif.variance_inflation_factor(self)
-    
-    def inference_table(self) -> dict:
+
+    def inference_table(self) -> List[dict]:
         self.__model_fitted()
         return table.inference_table(self)
-
 
 
 @dataclass
@@ -127,24 +132,26 @@ class LinearRegression(Model):
         cov_type:       Optional[str] = None,
         alpha:          float = 0.05,
     ) -> 'LinearRegression':
-        
+
         model_fit.fit(self, X, y, feature_names, target_name, alpha)
         self.post_fit(cov_type)
         return self
 
 
-
 @dataclass
 class BaseClassifier(Model):
 
-    xtWx_inv:                Optional[np.ndarray] = field(default=None, repr=False)
+    xtWx_inv:                Optional[np.ndarray] = field(
+        default=None, repr=False)
     deviance:                Optional[float] = None
     null_deviance:           Optional[float] = None
     null_log_likelihood:     Optional[float] = None
     pseudo_r_squared:        Optional[float] = None
     lr_statistic:            Optional[float] = None
-    z_stat_coefficient:      Optional[np.ndarray] = field(default=None, repr=False)
-    probabilities:           Optional[np.ndarray] = field(default=None, repr=False)
+    z_stat_coefficient:      Optional[np.ndarray] = field(
+        default=None, repr=False)
+    probabilities:           Optional[np.ndarray] = field(
+        default=None, repr=False)
     classification_accuracy: Optional[float] = None
 
     def fit(
@@ -160,11 +167,11 @@ class BaseClassifier(Model):
         adj_cutpoints:  bool = False,
         cuda:           bool = False,
     ) -> 'BaseClassifier':
-        
-        model_fit.fit(self, X, y, feature_names, target_name, alpha, max_iter, tol, adj_cutpoints, cuda)
+
+        model_fit.fit(self, X, y, feature_names, target_name,
+                      alpha, max_iter, tol, adj_cutpoints, cuda)
         self.post_fit(cov_type)
         return self
-
 
 
 @dataclass
@@ -173,7 +180,6 @@ class LogisticRegression(BaseClassifier):
     @property
     def model_type(self) -> str:
         return "logit"
-
 
 
 @dataclass
@@ -189,7 +195,6 @@ class MultinomialLogisticRegression(BaseClassifier):
     y_encoded:      Optional[np.ndarray] = field(default=None, repr=False)
     cuda:           bool = field(default=False, repr=True)
 
-    
 
 class OrdinalLogisticRegression(MultinomialLogisticRegression):
 

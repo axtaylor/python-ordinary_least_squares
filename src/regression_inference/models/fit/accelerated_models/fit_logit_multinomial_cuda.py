@@ -7,6 +7,7 @@ COND_THRESHOLD = 1e10
 PROB_CLIP_MIN = 1e-15
 PROB_CLIP_MAX = 1 - 1e-15
 
+
 def softmax(Z: cp.ndarray) -> cp.ndarray:
 
     Z_stable = Z - cp.max(Z, axis=1, keepdims=True)
@@ -26,21 +27,22 @@ def accelerated_multinomial_logit(model, max_iter: int, tol: float) -> None:
 
     warnings.warn(
         f"\nCUDA Acceleration is Experimental\n"
-        f"Device: {str(cp.cuda.runtime.getDeviceProperties(device.id)['name'])[2:][:-1]}\n",
+        f"Device: {str(cp.cuda.runtime.getDeviceProperties(
+            device.id)['name'])[2:][:-1]}\n",
         UserWarning,
         stacklevel=4,
     )
-     
+
     n_samples, model.n_features = model.X.shape
 
     model.n_classes = len(cp.unique(model.y))
-    
+
     if model.n_classes <= 2:
         raise ValueError(
             "Multinomial logit requires 3+ classes. "
             "Use LogisticRegression() for 2 classes."
-    )
-    
+        )
+
     model.y_classes = cp.unique(model.y)
 
     model.y_encoded = (
@@ -56,7 +58,6 @@ def accelerated_multinomial_logit(model, max_iter: int, tol: float) -> None:
     standard_fit(model, y_onehot, n_samples, max_iter, tol)
 
 
-
 def standard_fit(model, y_enc: cp.ndarray, n_samples: int, max_iter: int, tol: float) -> None:
 
     model.X = cp.asarray(model.X)
@@ -65,10 +66,9 @@ def standard_fit(model, y_enc: cp.ndarray, n_samples: int, max_iter: int, tol: f
 
     J = model.n_classes - 1
 
-    Y = y_enc[:, 1:] 
+    Y = y_enc[:, 1:]
 
     theta = cp.zeros((p, J))
-
 
     for _ in range(max_iter):
 
@@ -78,9 +78,9 @@ def standard_fit(model, y_enc: cp.ndarray, n_samples: int, max_iter: int, tol: f
 
         P = softmax(Z_full)
 
-        Pj = P[:, 1:] 
+        Pj = P[:, 1:]
 
-        grad = model.X.T @ (Y - Pj)  
+        grad = model.X.T @ (Y - Pj)
 
         grad_flat = grad.flatten(order="F")
 
@@ -114,7 +114,6 @@ def standard_fit(model, y_enc: cp.ndarray, n_samples: int, max_iter: int, tol: f
 
     H = standard_hessian(model.X, model.probabilities)
 
-
     cond = np.linalg.cond(H.get())
     if cond > COND_THRESHOLD:
         cond_warn(cond)
@@ -138,7 +137,6 @@ def standard_fit(model, y_enc: cp.ndarray, n_samples: int, max_iter: int, tol: f
     model_params(model, y_enc)
 
 
-
 def standard_hessian(X: cp.ndarray, probs: cp.ndarray) -> cp.ndarray:
 
     _, n_features = X.shape
@@ -146,13 +144,13 @@ def standard_hessian(X: cp.ndarray, probs: cp.ndarray) -> cp.ndarray:
     n_classes = probs.shape[1]
 
     n_alt = n_classes - 1
-    
+
     P = probs[:, 1:]  # shape: (n_samples, n_alt)
-    
+
     H = (
         cp.zeros((n_features * n_alt, n_features * n_alt))
     )
-    
+
     for j in range(n_alt):
 
         for k in range(n_alt):
@@ -167,22 +165,20 @@ def standard_hessian(X: cp.ndarray, probs: cp.ndarray) -> cp.ndarray:
 
                 # Off-diagonal block: -X^T diag(p_j * p_k) X
                 w = -P[:, j] * P[:, k]
-  
 
             X_weighted = X.T * w    # (n_features, n_samples)
-            
+
             block = X_weighted @ X  # (n_features, n_features)
-            
+
             # Place in H
-            H[j*n_features:(j+1)*n_features, 
+            H[j*n_features:(j+1)*n_features,
               k*n_features:(k+1)*n_features] = block
-    
+
     return H
 
 
-
 def predict_prob(X: cp.ndarray, theta: cp.ndarray) -> cp.ndarray:
-    
+
     n_samples = X.shape[0]
 
     Z = X @ theta
@@ -192,13 +188,12 @@ def predict_prob(X: cp.ndarray, theta: cp.ndarray) -> cp.ndarray:
     return softmax(Z_full)
 
 
-
 def model_params(model, y_enc: cp.ndarray):
 
     y_hat_prob = (
         cp.clip(model.probabilities, PROB_CLIP_MIN, PROB_CLIP_MAX)
     )
-    
+
     model.log_likelihood = (
         cp.sum(y_enc * cp.log(y_hat_prob))
     )
@@ -206,7 +201,7 @@ def model_params(model, y_enc: cp.ndarray):
     model.deviance = (
         -2 * model.log_likelihood
     )
-    
+
     n_samples, _ = y_enc.shape
 
     class_probs = (
@@ -267,7 +262,7 @@ def model_params(model, y_enc: cp.ndarray):
     # Reshape step for correct ordering by theta_flat
 
     shape = model.theta.shape
-    
+
     model.std_error_coefficient = (
         model.std_error_coefficient.reshape(shape, order="F")
     )
@@ -297,8 +292,6 @@ def model_params(model, y_enc: cp.ndarray):
 
         if isinstance(value, cp.ndarray):
             setattr(model, attr, value.get())
-        
-
 
 
 def cond_warn(cond: float):
@@ -310,7 +303,8 @@ def cond_warn(cond: float):
         f"- Increasing sample size per class\n",
         UserWarning,
         stacklevel=5
-)
+    )
+
 
 def conv_warn(max_iter: int, message: str = ""):
     warnings.warn(
@@ -324,7 +318,8 @@ def conv_warn(max_iter: int, message: str = ""):
         f"- Ensuring sufficient samples per class\n",
         UserWarning,
         stacklevel=5
-)
+    )
+
 
 def separation_warn(max_coef: float):
     warnings.warn(
@@ -335,4 +330,4 @@ def separation_warn(max_coef: float):
         f"- Standard errors may be unreliable\n",
         UserWarning,
         stacklevel=5
-)
+    )

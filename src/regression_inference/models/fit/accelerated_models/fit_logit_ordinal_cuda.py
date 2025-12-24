@@ -8,6 +8,7 @@ PROB_CLIP_MAX = 1 - 1e-15
 
 # TODO: Work in progress. Results may be unreliable.
 
+
 def accelerated_ordinal_logit(model, adj_cutpoints: bool, max_iter: int, tol: float) -> None:
 
     if cp.cuda.runtime.getDeviceCount() == 0:
@@ -18,7 +19,8 @@ def accelerated_ordinal_logit(model, adj_cutpoints: bool, max_iter: int, tol: fl
 
     warnings.warn(
         f"\nCUDA Acceleration is Experimental\n"
-        f"Device: {str(cp.cuda.runtime.getDeviceProperties(device.id)['name'])[2:][:-1]}\n",
+        f"Device: {str(cp.cuda.runtime.getDeviceProperties(
+            device.id)['name'])[2:][:-1]}\n",
         UserWarning,
         stacklevel=4,
     )
@@ -26,13 +28,13 @@ def accelerated_ordinal_logit(model, adj_cutpoints: bool, max_iter: int, tol: fl
     _, model.n_features = model.X.shape
 
     model.n_classes = len(cp.unique(model.y))
-    
+
     if model.n_classes <= 2:
         raise ValueError(
             "Ordinal logit requires 3+ classes. "
             "Use LogisticRegression() for 2 classes."
         )
-    
+
     model.y_classes = cp.unique(model.y)
 
     model.y_encoded = (
@@ -53,12 +55,8 @@ def accelerated_ordinal_logit(model, adj_cutpoints: bool, max_iter: int, tol: fl
     model_params(model, adj_cutpoints, y_enc)
 
 
-
 def fit(model, adj_cutpoints: bool, y: cp.ndarray, max_iter: int, tol: float):
-
-
     """Newton-Raphson with line search osn cupy array."""
-
 
     model.X = (
         cp.atleast_2d(model.X)
@@ -68,21 +66,20 @@ def fit(model, adj_cutpoints: bool, y: cp.ndarray, max_iter: int, tol: float):
 
     J = model.n_classes - 1
 
-
-    # TODO - There is significant precision loss on scaling during fit, but it is a strong optimizer 
+    # TODO - There is significant precision loss on scaling during fit, but it is a strong optimizer
 
     # Standardize features for numerical stability
     # X_mean = cp.mean(model.X, axis=0)
     # X_std = cp.std(model.X, axis=0)
     # X_std = cp.where(X_std < 1e-10, 1.0, X_std)
     # X_scaled = (model.X - X_mean) / X_std
-    
+
     # Initialization
 
     start = (
         cp.zeros(n_features + J, dtype=cp.float64)
     )
-    
+
     class_counts = (
         cp.array([cp.sum(y == k) for k in range(model.n_classes)])
     )
@@ -99,7 +96,6 @@ def fit(model, adj_cutpoints: bool, y: cp.ndarray, max_iter: int, tol: float):
         cp.log(cumulative_props / (1 - cumulative_props))
     )
 
-
     res = newton_raphson_optimize(
         negativeLL_gpu,
         gradient_gpu,
@@ -112,15 +108,15 @@ def fit(model, adj_cutpoints: bool, y: cp.ndarray, max_iter: int, tol: float):
 
     # TODO: Scaling params
 
-    #beta_scaled = res['x'][:n_features]
-    #alpha_scaled = res['x'][n_features:]
-    #alpha_scaled_sorted = cp.sort(alpha_scaled)
-    
+    # beta_scaled = res['x'][:n_features]
+    # alpha_scaled = res['x'][n_features:]
+    # alpha_scaled_sorted = cp.sort(alpha_scaled)
+
     # Unscale
 
-    #model.coefficients = beta_scaled / X_std
-    #intercept_adjustment = cp.sum(X_mean * beta_scaled / X_std)
-    #model.alpha_cutpoints = alpha_scaled_sorted + intercept_adjustment
+    # model.coefficients = beta_scaled / X_std
+    # intercept_adjustment = cp.sum(X_mean * beta_scaled / X_std)
+    # model.alpha_cutpoints = alpha_scaled_sorted + intercept_adjustment
 
     beta = (
         res['x'][:n_features]
@@ -143,15 +139,14 @@ def fit(model, adj_cutpoints: bool, y: cp.ndarray, max_iter: int, tol: float):
         warnings.warn(
             "Cutpoints are not strictly increasing. This may indicate model misspecification.",
             UserWarning
-    )
-
+        )
 
     # TODO: Scaling
 
     # Compute Hessian at final solution with SCALED data
 
-    #params_sorted = cp.concatenate([beta_scaled, alpha_scaled_sorted])
-    #H_scaled = hessian_gpu(params_sorted, X_scaled, y, model.n_classes)
+    # params_sorted = cp.concatenate([beta_scaled, alpha_scaled_sorted])
+    # H_scaled = hessian_gpu(params_sorted, X_scaled, y, model.n_classes)
 
     params_sorted = (
         cp.concatenate([beta, alpha_sorted])
@@ -161,25 +156,24 @@ def fit(model, adj_cutpoints: bool, y: cp.ndarray, max_iter: int, tol: float):
     H = (
         hessian_gpu(params_sorted, model.X, y, model.n_classes)
     )
-    
 
     # Cov matrix scaled
 
-    #try:
+    # try:
     #    cov_scaled = cp.linalg.inv(H_scaled)
-    #except:
+    # except:
     #    cov_scaled = cp.linalg.pinv(H_scaled)
-    
+
     # Unscale
 
-    #scale_matrix = cp.diag(cp.concatenate([1.0 / X_std, cp.ones(J, dtype=cp.float64)]))
-    #model.xtWx_inv = scale_matrix @ cov_scaled @ scale_matrix
-    
+    # scale_matrix = cp.diag(cp.concatenate([1.0 / X_std, cp.ones(J, dtype=cp.float64)]))
+    # model.xtWx_inv = scale_matrix @ cov_scaled @ scale_matrix
+
     try:
         model.xtWx_inv = cp.linalg.inv(H)
     except:
         model.xtWx_inv = cp.linalg.pinv(H)
-    
+
     # Statsmodels like method
 
     model.theta_cutpoints = (
@@ -187,7 +181,7 @@ def fit(model, adj_cutpoints: bool, y: cp.ndarray, max_iter: int, tol: float):
     )
 
     model.theta_cutpoints[0] = model.alpha_cutpoints[0]
-    
+
     diffs = cp.diff(model.alpha_cutpoints)
 
     diffs = cp.maximum(diffs, 1e-10)
@@ -197,32 +191,31 @@ def fit(model, adj_cutpoints: bool, y: cp.ndarray, max_iter: int, tol: float):
     model.theta = (
         cp.concatenate([model.coefficients, model.theta_cutpoints])
         if adj_cutpoints else
-        cp.concatenate([model.coefficients, model.alpha_cutpoints]) # MASS:polr like method
+        # MASS:polr like method
+        cp.concatenate([model.coefficients, model.alpha_cutpoints])
     )
 
     return res
 
 
-
 def newton_raphson_optimize(
-        fun,
-        grad_fun,
-        hess_fun,
-        x0,
-        args=(),
-        max_iter=100,
-        tol=1e-5
-    ):
-
+    fun,
+    grad_fun,
+    hess_fun,
+    x0,
+    args=(),
+    max_iter=100,
+    tol=1e-5
+):
     """Newton-Raphson optimization with damped updates and line search."""
 
     x = (
         cp.asarray(x0, dtype=cp.float64)
     )
-    
+
     success = False
     message = "Maximum iterations reached"
-    
+
     for iteration in range(max_iter):
 
         # Compute gradient and Hessian
@@ -233,7 +226,7 @@ def newton_raphson_optimize(
         H = (
             hess_fun(x, *args)
         )
-        
+
         # Check convergence
         grad_norm = cp.linalg.norm(g)
 
@@ -241,7 +234,7 @@ def newton_raphson_optimize(
             success = True
             message = "Optimization converged"
             break
-        
+
         # Add damping for stability
         damping = (
             1e-6 * cp.eye(len(x), dtype=cp.float64)
@@ -250,7 +243,7 @@ def newton_raphson_optimize(
         H_damped = (
             H + damping
         )
-        
+
         # Solve for Newton direction
         try:
             direction = -cp.linalg.solve(H_damped, g)
@@ -258,22 +251,22 @@ def newton_raphson_optimize(
         except:
             # Fallback to gradient descent if Hessian is singular
             direction = -g / (cp.linalg.norm(g) + 1e-10)
-        
+
         # Line search with backtracking
         alpha = (
             backtracking_line_search(fun, x, direction, g, args)
         )
-        
+
         x_new = x + alpha * direction
-        
+
         if not cp.all(cp.isfinite(x_new)):
             message = "Numerical issues encountered"
             break
-        
+
         x = x_new
-    
+
     f = fun(x, *args)
-    
+
     return {
         'x': x,
         'fun': f,
@@ -283,9 +276,7 @@ def newton_raphson_optimize(
     }
 
 
-
 def backtracking_line_search(fun, x, direction, gradient, args, alpha_init=1.0, rho=0.5, c=1e-4, max_iter=30):
-
     """Backtracking line search with Armijo condition."""
 
     alpha = (
@@ -299,7 +290,7 @@ def backtracking_line_search(fun, x, direction, gradient, args, alpha_init=1.0, 
     grad_dot_dir = (
         cp.dot(gradient, direction)
     )
-    
+
     for _ in range(max_iter):
 
         x_new = (
@@ -309,15 +300,14 @@ def backtracking_line_search(fun, x, direction, gradient, args, alpha_init=1.0, 
         f_new = (
             fun(x_new, *args)
         )
-        
+
         # Armijo condition
         if f_new <= f_current + c * alpha * grad_dot_dir:
             return alpha
-        
-        alpha *= rho
-    
-    return alpha
 
+        alpha *= rho
+
+    return alpha
 
 
 def negativeLL_gpu(params, X, y, n_classes):
@@ -333,16 +323,16 @@ def negativeLL_gpu(params, X, y, n_classes):
     y = (
         cp.asarray(y, dtype=cp.int32)
     )
-    
+
     n, p = X.shape
     J = n_classes - 1
 
     beta = params[:p]
     alpha = params[p:]
-    
+
     # Linear predictor
     eta = X @ beta
-    
+
     # Cumulative probabilities using stable logistic
     z = alpha[:, cp.newaxis] - eta[cp.newaxis, :]       # Shape: (J, n)
 
@@ -350,8 +340,8 @@ def negativeLL_gpu(params, X, y, n_classes):
         1.0 / (1.0 + cp.exp(-cp.clip(z, -500, 500)))
     )
 
-    cumulative = cumulative.T                                 
-    
+    cumulative = cumulative.T
+
     # Category probabilities
 
     probs = (
@@ -364,7 +354,7 @@ def negativeLL_gpu(params, X, y, n_classes):
         probs[:, j] = cumulative[:, j] - cumulative[:, j-1]
 
     probs[:, -1] = 1.0 - cumulative[:, -1]
-    
+
     # Normalization
     probs = (
         cp.clip(probs, PROB_CLIP_MIN, PROB_CLIP_MAX)
@@ -377,9 +367,8 @@ def negativeLL_gpu(params, X, y, n_classes):
     ll = (
         cp.sum(cp.log(probs[cp.arange(n), y]))
     )
-    
-    return -ll  # As cupy scalar
 
+    return -ll  # As cupy scalar
 
 
 def gradient_gpu(params, X, y, n_classes):
@@ -395,7 +384,7 @@ def gradient_gpu(params, X, y, n_classes):
     y = (
         cp.asarray(y, dtype=cp.int32)
     )
-    
+
     n, p = X.shape
     J = n_classes - 1
 
@@ -403,7 +392,7 @@ def gradient_gpu(params, X, y, n_classes):
     alpha = params[p:]
 
     eta = X @ beta
-    
+
     # cumulative probabilities and densities
 
     z = (
@@ -425,11 +414,11 @@ def gradient_gpu(params, X, y, n_classes):
     densities = (
         exp_neg_z / ((1.0 + exp_neg_z) ** 2)
     )
-    
+
     cumulative = cumulative.T  # Shape: (n, J)
 
     densities = densities.T  # Shape: (n, J)
-    
+
     # Category probabilities
     probs = (
         cp.zeros((n, n_classes), dtype=cp.float64)
@@ -447,10 +436,10 @@ def gradient_gpu(params, X, y, n_classes):
     probs = (
         cp.clip(probs, PROB_CLIP_MIN, PROB_CLIP_MAX)
     )
-    
+
     # probabilities for observed classes
     pi = probs[cp.arange(n), y]  # Shape: (n,)
-    
+
     # gradient contributions
     grad_beta = (
         cp.zeros(p, dtype=cp.float64)
@@ -459,7 +448,7 @@ def gradient_gpu(params, X, y, n_classes):
     grad_alpha = (
         cp.zeros(J, dtype=cp.float64)
     )
-    
+
     # First category (yi == 0)
     mask_0 = (y == 0)
 
@@ -470,19 +459,19 @@ def gradient_gpu(params, X, y, n_classes):
         grad_beta += cp.sum((weights_0[:, cp.newaxis] * X[mask_0]), axis=0)
 
         grad_alpha[0] -= cp.sum(weights_0)
-    
+
     # Last category (yi == n_classes - 1)
     mask_last = (y == n_classes - 1)
 
-
     if cp.any(mask_last):
 
-        weights_last = densities[mask_last, J-1] / pi[mask_last]  # Shape: (n_last,)
+        weights_last = densities[mask_last, J-1] / \
+            pi[mask_last]  # Shape: (n_last,)
 
-        grad_beta -= cp.sum((weights_last[:, cp.newaxis] * X[mask_last]), axis=0)
+        grad_beta -= cp.sum((weights_last[:,
+                            cp.newaxis] * X[mask_last]), axis=0)
 
         grad_alpha[J-1] += cp.sum(weights_last)
-    
 
     # Middle categories (0 < yi < n_classes - 1)
     for k in range(1, n_classes - 1):
@@ -491,21 +480,21 @@ def gradient_gpu(params, X, y, n_classes):
 
         if cp.any(mask_k):
 
-            weights_k = (densities[mask_k, k] - densities[mask_k, k-1]) / pi[mask_k]  # Shape: (n_k,)
+            # Shape: (n_k,)
+            weights_k = (densities[mask_k, k] -
+                         densities[mask_k, k-1]) / pi[mask_k]
 
             grad_beta += cp.sum((weights_k[:, cp.newaxis] * X[mask_k]), axis=0)
 
             grad_alpha[k-1] += cp.sum(densities[mask_k, k-1] / pi[mask_k])
 
             grad_alpha[k] -= cp.sum(densities[mask_k, k] / pi[mask_k])
-    
 
     grad = (
         cp.concatenate([grad_beta, grad_alpha])
     )
 
     return grad
-
 
 
 def hessian_gpu(params, X, y, n_classes):
@@ -521,16 +510,16 @@ def hessian_gpu(params, X, y, n_classes):
     y = (
         cp.asarray(y, dtype=cp.int32)
     )
-    
+
     n, p = X.shape
     J = n_classes - 1
     dim = p + J
 
     beta = params[:p]
     alpha = params[p:]
-    
+
     eta = X @ beta
-    
+
     # cumulative probabilities and densities
     z = (
         alpha[:, cp.newaxis] - eta[cp.newaxis, :]
@@ -551,11 +540,11 @@ def hessian_gpu(params, X, y, n_classes):
     densities = (
         exp_neg_z / ((1.0 + exp_neg_z) ** 2)
     )
-    
+
     cumprobs = cumprobs.T
 
     densities = densities.T
-    
+
     probs = (
         cp.zeros((n, n_classes), dtype=cp.float64)
     )
@@ -572,15 +561,15 @@ def hessian_gpu(params, X, y, n_classes):
     probs = (
         cp.clip(probs, PROB_CLIP_MIN, PROB_CLIP_MAX)
     )
-    
+
     # observed classes
     pi = probs[cp.arange(n), y]  # Shape: (n,)
-    
-    # gradient for each observation 
+
+    # gradient for each observation
     g_batch = (
         cp.zeros((n, dim), dtype=cp.float64)
     )
-    
+
     # First category (yi == 0)
     mask_0 = (y == 0)
 
@@ -591,19 +580,18 @@ def hessian_gpu(params, X, y, n_classes):
         g_batch[mask_0, :p] = weights_0[:, cp.newaxis] * X[mask_0]
 
         g_batch[mask_0, p] = -weights_0
-    
 
     # Last category (yi == n_classes - 1)
     mask_last = (y == n_classes - 1)
 
     if cp.any(mask_last):
 
-        weights_last = densities[mask_last, J-1] / pi[mask_last]  # Shape: (n_last,)
+        weights_last = densities[mask_last, J-1] / \
+            pi[mask_last]  # Shape: (n_last,)
 
         g_batch[mask_last, :p] = -weights_last[:, cp.newaxis] * X[mask_last]
 
         g_batch[mask_last, p + J - 1] = weights_last
-    
 
     # Middle categories
     for k in range(1, n_classes - 1):
@@ -612,21 +600,22 @@ def hessian_gpu(params, X, y, n_classes):
 
         if cp.any(mask_k):
 
-            weights_k = (densities[mask_k, k] - densities[mask_k, k-1]) / pi[mask_k]  # Shape: (n_k,)
+            # Shape: (n_k,)
+            weights_k = (densities[mask_k, k] -
+                         densities[mask_k, k-1]) / pi[mask_k]
 
             g_batch[mask_k, :p] = weights_k[:, cp.newaxis] * X[mask_k]
 
             g_batch[mask_k, p + k - 1] = densities[mask_k, k-1] / pi[mask_k]
 
             g_batch[mask_k, p + k] = -densities[mask_k, k] / pi[mask_k]
-    
 
     # Compute Hessian as sum of outer products
     # H = sum_i (g_i @ g_i.T) = G.T @ G where G is (n, dim)
     H = (
         g_batch.T @ g_batch
     )
-    
+
     return H
 
 
@@ -634,9 +623,9 @@ def predict(X: cp.ndarray, beta: cp.ndarray, alpha: cp.ndarray, n_classes: int) 
 
     n = X.shape[0]
     J = len(alpha)
-    
+
     eta = X @ beta
-    
+
     z = (
         alpha[:, cp.newaxis] - eta[cp.newaxis, :]
     )
@@ -646,18 +635,18 @@ def predict(X: cp.ndarray, beta: cp.ndarray, alpha: cp.ndarray, n_classes: int) 
     )
 
     cumulative = cumulative.T
-    
+
     categorical_pr = (
         cp.zeros((n, n_classes), dtype=cp.float64)
     )
 
     categorical_pr[:, 0] = cumulative[:, 0]
-    
+
     for j in range(1, J):
         categorical_pr[:, j] = cumulative[:, j] - cumulative[:, j-1]
-    
+
     categorical_pr[:, -1] = 1 - cumulative[:, -1]
-    
+
     categorical_pr = (
         cp.clip(categorical_pr, PROB_CLIP_MIN, PROB_CLIP_MAX)
     )
@@ -665,9 +654,8 @@ def predict(X: cp.ndarray, beta: cp.ndarray, alpha: cp.ndarray, n_classes: int) 
     categorical_pr = (
         categorical_pr / categorical_pr.sum(axis=1, keepdims=True)
     )
-    
-    return categorical_pr
 
+    return categorical_pr
 
 
 def postfit(model) -> cp.ndarray:
@@ -703,7 +691,7 @@ def model_params(model, adj_cutpoints: bool, y_enc: cp.ndarray) -> None:
     y_hat_prob = (
         cp.clip(model.probabilities, PROB_CLIP_MIN, PROB_CLIP_MAX)
     )
-    
+
     model.log_likelihood = (
         cp.sum(y_enc * cp.log(y_hat_prob))
     )
@@ -711,7 +699,7 @@ def model_params(model, adj_cutpoints: bool, y_enc: cp.ndarray) -> None:
     model.deviance = (
         -2 * model.log_likelihood
     )
-    
+
     n_samples, _ = y_enc.shape
 
     class_probabilities = (
@@ -766,11 +754,10 @@ def model_params(model, adj_cutpoints: bool, y_enc: cp.ndarray) -> None:
             cp.sqrt(cp.maximum(cp.diag(model.xtWx_inv), 1e-20))
         )
 
-
     model.z_stat_coefficient = (
         model.theta / cp.maximum(model.std_error_coefficient, 1e-10)
     )
-    
+
     z_stats_np = (
         cp.asnumpy(cp.abs(model.z_stat_coefficient))
     )
@@ -785,7 +772,7 @@ def model_params(model, adj_cutpoints: bool, y_enc: cp.ndarray) -> None:
         model.theta - z_crit * model.std_error_coefficient,
         model.theta + z_crit * model.std_error_coefficient
     )
-    
+
     predicted_class = (
         cp.argmax(y_hat_prob, axis=1)
     )
@@ -806,11 +793,10 @@ def model_params(model, adj_cutpoints: bool, y_enc: cp.ndarray) -> None:
 
 
 def transform_covariance(model) -> cp.ndarray:
-
     """
     Transform covariance matrix from alpha to theta parameterization.
     Uses delta method: Var(g(theta)) = g'(theta) * Var(theta) * g'(theta)^T
-    
+
     Where theta[j] = log(alpha[j] - alpha[j-1]) for j > 0
           theta[0] = alpha[0]
     """
@@ -818,23 +804,23 @@ def transform_covariance(model) -> cp.ndarray:
     p = len(model.coefficients)
     J = len(model.alpha_cutpoints)
     V_alpha = model.xtWx_inv  # Covariance in alpha parameterization
-    
+
     dim = p + J
-    
+
     # Jacobian matrix: d(beta, theta) / d(beta, alpha)
     G = cp.zeros((dim, dim), dtype=cp.float64)
-    
+
     # Beta part (no transformation)
     G[:p, :p] = cp.eye(p, dtype=cp.float64)
-    
+
     # Theta cutpoint transformations
     # theta[0] = alpha[0]  =>  d(theta[0])/d(alpha[0]) = 1
     G[p, p] = 1.0
-    
+
     # For j >= 1: theta[j] = log(alpha[j] - alpha[j-1])
     # d(theta[j])/d(alpha[j]) = 1 / (alpha[j] - alpha[j-1])
     # d(theta[j])/d(alpha[j-1]) = -1 / (alpha[j] - alpha[j-1])
-    
+
     for j in range(1, J):
 
         denom = (
@@ -842,14 +828,14 @@ def transform_covariance(model) -> cp.ndarray:
         )
 
         denom = cp.maximum(denom, 1e-10)  # Protect against small differences
-        
+
         G[p + j, p + j] = 1.0 / denom          # d/d(alpha[j])
 
         G[p + j, p + j - 1] = -1.0 / denom     # d/d(alpha[j-1])
-    
+
     # Apply delta method: Var(theta) = G * Var(alpha) * G^T
     V_theta = G @ V_alpha @ G.T
-    
+
     return V_theta
 
 

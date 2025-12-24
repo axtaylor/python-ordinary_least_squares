@@ -6,6 +6,7 @@ COND_THRESHOLD = 1e10
 PROB_CLIP_MIN = 1e-15
 PROB_CLIP_MAX = 1 - 1e-15
 
+
 def softmax(Z: np.ndarray) -> np.ndarray:
 
     Z_stable = Z - np.max(Z, axis=1, keepdims=True)
@@ -16,17 +17,17 @@ def softmax(Z: np.ndarray) -> np.ndarray:
 
 
 def internal_multinomial_logit(model, max_iter: int, tol: float) -> None:
-     
+
     n_samples, model.n_features = model.X.shape
 
     model.n_classes = len(np.unique(model.y))
-    
+
     if model.n_classes <= 2:
         raise ValueError(
             "Multinomial logit requires 3+ classes. "
             "Use LogisticRegression() for 2 classes."
-    )
-    
+        )
+
     model.y_classes = np.unique(model.y)
 
     model.y_encoded = (
@@ -42,17 +43,15 @@ def internal_multinomial_logit(model, max_iter: int, tol: float) -> None:
     standard_fit(model, y_onehot, n_samples, max_iter, tol)
 
 
-
 def standard_fit(model, y_enc: np.ndarray, n_samples: int, max_iter: int, tol: float) -> None:
 
     p = model.n_features
 
     J = model.n_classes - 1
 
-    Y = y_enc[:, 1:] 
+    Y = y_enc[:, 1:]
 
     theta = np.zeros((p, J))
-
 
     for _ in range(max_iter):
 
@@ -62,9 +61,9 @@ def standard_fit(model, y_enc: np.ndarray, n_samples: int, max_iter: int, tol: f
 
         P = softmax(Z_full)
 
-        Pj = P[:, 1:] 
+        Pj = P[:, 1:]
 
-        grad = model.X.T @ (Y - Pj)  
+        grad = model.X.T @ (Y - Pj)
 
         grad_flat = grad.flatten(order="F")
 
@@ -121,36 +120,33 @@ def standard_fit(model, y_enc: np.ndarray, n_samples: int, max_iter: int, tol: f
     model_params(model, y_enc)
 
 
-
 def standard_hessian(X: np.ndarray, probs: np.ndarray) -> np.ndarray:
 
     n_samples, n_features = X.shape
 
     n_classes = probs.shape[1]
 
-    n_alt = n_classes - 1 
-
+    n_alt = n_classes - 1
 
     H = np.zeros((n_features * n_alt, n_features * n_alt))
 
     for i in range(n_samples):
 
-        p = probs[i, 1:] 
+        p = probs[i, 1:]
 
-        V = np.diag(p) - np.outer(p, p)  
+        V = np.diag(p) - np.outer(p, p)
 
-        Xi = X[i][:, None]    
+        Xi = X[i][:, None]
 
-        XiXiT = Xi @ Xi.T    
+        XiXiT = Xi @ Xi.T
 
-        H += np.kron(V, XiXiT)  
+        H += np.kron(V, XiXiT)
 
     return H
 
 
-
 def predict_prob(X: np.ndarray, theta: np.ndarray) -> np.ndarray:
-    
+
     n_samples = X.shape[0]
 
     Z = X @ theta
@@ -160,13 +156,12 @@ def predict_prob(X: np.ndarray, theta: np.ndarray) -> np.ndarray:
     return softmax(Z_full)
 
 
-
 def model_params(model, y_enc: np.ndarray):
 
     y_hat_prob = (
         np.clip(model.probabilities, PROB_CLIP_MIN, PROB_CLIP_MAX)
     )
-    
+
     model.log_likelihood = (
         np.sum(y_enc * np.log(y_hat_prob))
     )
@@ -174,7 +169,7 @@ def model_params(model, y_enc: np.ndarray):
     model.deviance = (
         -2 * model.log_likelihood
     )
-    
+
     n_samples, _ = y_enc.shape
 
     class_probs = (
@@ -235,7 +230,7 @@ def model_params(model, y_enc: np.ndarray):
     # Reshape step for correct ordering by theta_flat
 
     shape = model.theta.shape
-    
+
     model.std_error_coefficient = (
         model.std_error_coefficient.reshape(shape, order="F")
     )
@@ -261,7 +256,6 @@ def model_params(model, y_enc: np.ndarray):
     model.residuals = (model.y_encoded != predicted_class).astype(float)
 
 
-
 def cond_warn(cond: float):
     warnings.warn(
         f"\nHessian matrix is ill-conditioned (cond={cond:.2e}).\n"
@@ -271,7 +265,8 @@ def cond_warn(cond: float):
         f"- Increasing sample size per class\n",
         UserWarning,
         stacklevel=5
-)
+    )
+
 
 def conv_warn(max_iter: int, message: str = ""):
     warnings.warn(
@@ -285,7 +280,8 @@ def conv_warn(max_iter: int, message: str = ""):
         f"- Ensuring sufficient samples per class\n",
         UserWarning,
         stacklevel=5
-)
+    )
+
 
 def separation_warn(max_coef: float):
     warnings.warn(
@@ -296,4 +292,4 @@ def separation_warn(max_coef: float):
         f"- Standard errors may be unreliable\n",
         UserWarning,
         stacklevel=5
-)
+    )

@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def summary(*args):
 
     col_width, col_span, models = (
@@ -10,17 +11,17 @@ def summary(*args):
     for i, model in enumerate(models):
         if model.theta is None:
             raise ValueError(f"Error: Model {i+1} is not fitted.")
-    
+
     if len(set(m.model_type for m in models)) > 1:
         raise ValueError("Error: Cannot stack different model types.")
 
     format_length = col_span + (len(models)*col_width)
 
     TITLE_MAP = {
-    "linear": "OLS Regression Results",
-    "logit": "Logistic Regression Results",
-    "logit_multinomial": "Multinomial Regression Results",
-    "logit_ordinal": "Ordinal Regression Results",
+        "linear": "OLS Regression Results",
+        "logit": "Logistic Regression Results",
+        "logit_multinomial": "Multinomial Regression Results",
+        "logit_ordinal": "Ordinal Regression Results",
     }
 
     model_type = models[0].model_type
@@ -100,13 +101,12 @@ def summary(*args):
             rows.append(coef_row)
             rows.append(se_row)
     else:
-        J = model.theta.shape[1]  # number of non-reference classes
+        J = models[0].theta.shape[1]  # number of non-reference classes
 
         for j in range(J):
-            
-            col_num = int(model.y_classes[j+1])
+
+            col_num = int(models[0].y_classes[j+1])
             rows.append(f"{'Class:':<{col_span}}{col_num:>{col_width}}\n")
-           
 
             for feature in all_features:
                 coef_row = f"{feature:<{col_span}}"
@@ -138,15 +138,13 @@ def summary(*args):
                     coef_row += f"{coef_fmt:>{col_width}}"
                     se_row += f"{se_fmt:>{col_width}}"
 
-                
                 rows.append(coef_row)
                 rows.append(se_row)
                 rows.append(" ")
 
             rows.append(f"{'-'*format_length}")
 
-
-    if model.model_type == "linear":
+    if models[0].model_type == "linear":
         stats_lines = [
             ("R-squared", "r_squared"),
             ("Adjusted R-squared", "r_squared_adjusted"),
@@ -160,9 +158,9 @@ def summary(*args):
             ("ESS", "ess"),
             ("MSE", "mse"),
         ]
-        
-    if model.model_type in ["logit", "logit_multinomial", "logit_ordinal"]:
-         stats_lines = [
+
+    elif models[0].model_type in ["logit", "logit_multinomial", "logit_ordinal"]:
+        stats_lines = [
             ("Accuracy", "classification_accuracy"),
             ("Pseudo R-squared", "pseudo_r_squared"),
             ("LR Statistic", "lr_statistic"),
@@ -174,20 +172,22 @@ def summary(*args):
             ("AIC", "aic"),
             ("BIC", "bic")
         ]
+    else:
+        stats_lines = ""
 
     stats = f"\n{'-'*format_length}\n"
 
     for label, attr in stats_lines:
         stat_row = f"{label:<{col_span}}"
         for model in models:
-            stat_row += f"{(attr(model) if callable(attr) else getattr(model, attr)):>{col_width}.3f}"
+            stat_row += f"{(attr(model) if callable(attr)
+                            else getattr(model, attr)):>{col_width}.3f}"
         stats += stat_row + "\n"
-    
-    # Reset feature names to remove the ordinal 
+
+    # Reset feature names to remove the ordinal
     if models[0].model_type == "logit_ordinal":
         for i, model in enumerate(models):
             model.feature_names = old_feature_names[i]
-
 
     return (
         header +
@@ -196,3 +196,4 @@ def summary(*args):
         f"{'='*format_length}\n"
         "*p<0.1; **p<0.05; ***p<0.01\n"
     )
+

@@ -1,11 +1,12 @@
-import numpy as np    
+import numpy as np
 from scipy.stats import norm
 
 PROB_CLIP_MIN = 1e-15
 PROB_CLIP_MAX = 1 - 1e-15
 
+
 def predict_prob(X, beta, alpha, n_classes):
-        
+
     n = X.shape[0]
     J = len(alpha)
 
@@ -43,20 +44,18 @@ def predict_prob(X, beta, alpha, n_classes):
     return categorical_pr
 
 
-
 def predict(model, X, alpha, return_table):
 
-
     prediction = predict_prob(
-                np.atleast_2d(X),
-                model.coefficients,
-                model.alpha_cutpoints,
-                model.n_classes
-            )
-    
+        np.atleast_2d(X),
+        model.coefficients,
+        model.alpha_cutpoints,
+        model.n_classes
+    )
+
     if not return_table:
         return prediction
-    
+
     X = np.atleast_2d(X)
 
     prediction_features = {
@@ -74,16 +73,15 @@ def predict(model, X, alpha, return_table):
             int(np.argmax(p_i))
         )
 
-        #expected = (
+        # expected = (
         #    float(np.dot(p_i, np.arange(model.n_classes)))
-        #)
+        # )
 
         cumulative = np.cumsum(p_i)
         x_i = X[i]
 
         J = len(model.alpha_cutpoints)
         p = len(model.coefficients)
-
 
         def probability_gradient(x, beta, alpha, n_classes):
 
@@ -93,36 +91,35 @@ def predict(model, X, alpha, return_table):
             dF_dalpha = np.zeros((J, J))
 
             for j in range(J):
-                
+
                 eta = alpha[j] - x @ beta
 
                 F[j] = (
                     1 / (1 + np.exp(-np.clip(eta, -700, 700)))
                 )
 
-                f = F[j] * (1 - F[j]) # derivative of logistic
+                f = F[j] * (1 - F[j])  # derivative of logistic
 
-                dF_dbeta[j] = -f  
-                dF_dalpha[j, j] = f 
-
+                dF_dbeta[j] = -f
+                dF_dalpha[j, j] = f
 
             grad[0, :p] = dF_dbeta[0] * x
             grad[0, p] = dF_dalpha[0, 0]
 
             for j in range(1, J):
-                
+
                 grad[j, :p] = (dF_dbeta[j] - dF_dbeta[j-1]) * x
                 grad[j, p+j-1] = -dF_dalpha[j-1, j-1]
                 grad[j, p+j] = dF_dalpha[j, j]
-
 
             grad[J, :p] = -dF_dbeta[J-1] * x
             grad[J, p+J-1] = -dF_dalpha[J-1, J-1]
 
             return grad
-        
+
         grad_p = (
-            probability_gradient(x_i, model.coefficients, model.alpha_cutpoints, model.n_classes)
+            probability_gradient(x_i, model.coefficients,
+                                 model.alpha_cutpoints, model.n_classes)
         )
 
         var_p = (
@@ -153,7 +150,7 @@ def predict(model, X, alpha, return_table):
         results.append({
             "features": [prediction_features],
             "prediction_class": pred_class,
-            #"prediction_ex": round(expected, 4),
+            # "prediction_ex": round(expected, 4),
             "cumulative_probabilities": np.round(cumulative, 4).tolist(),
             "prediction_prob": np.round(p_i, 4).tolist(),
             "std_error": np.round(se_p, 4).tolist(),
@@ -164,7 +161,3 @@ def predict(model, X, alpha, return_table):
         })
 
     return results
-        
-
-    
-  

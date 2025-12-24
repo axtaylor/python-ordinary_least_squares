@@ -1,11 +1,12 @@
 import numpy as np
 
+
 def variance_inflation_factor(model):
 
     X = (
         model.X
         if model.model_type == "logit_ordinal" else
-        model.X[:,1:]
+        model.X[:, 1:]
     )
 
     n_features, vif = X.shape[1], []
@@ -17,12 +18,12 @@ def variance_inflation_factor(model):
         )
 
         mask[i] = False
-        
-        X_j = X[:, i]                                                                      
+
+        X_j = X[:, i]
 
         X_other_with_intercept = (
             np.column_stack([np.ones(X[:, mask].shape[0]), X[:, mask]])
-        )                                                                      
+        )
 
         xtx = (
             X_other_with_intercept.T @ X_other_with_intercept
@@ -43,7 +44,7 @@ def variance_inflation_factor(model):
         if tss_aux < 1e-10:
             vif.append(np.inf)
             continue
-        
+
         rss_aux = (
             np.sum((X_j - y_hat_aux)**2)
         )
@@ -53,7 +54,7 @@ def variance_inflation_factor(model):
         )
 
         vif.append(
-                (
+            (
                 1 / (1 - r_squared_aux)
                 if r_squared_aux < 0.9999 else
                 np.inf
@@ -68,3 +69,4 @@ def variance_inflation_factor(model):
         ),
         'VIF': np.round(vif, 4)
     })
+

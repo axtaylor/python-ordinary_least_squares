@@ -6,13 +6,15 @@ COND_THRESHOLD = 1e10
 PROB_CLIP_MIN = 1e-15
 PROB_CLIP_MAX = 1 - 1e-15
 
+
 def sigmoid(z: np.ndarray) -> np.ndarray:
-    
+
     return np.where(
         z >= 0,
         1 / (1 + np.exp(-z)),
         np.exp(z) / (1 + np.exp(z))
     )
+
 
 def internal_logit(model, max_iter: int, tol: float) -> None:
 
@@ -42,10 +44,10 @@ def internal_logit(model, max_iter: int, tol: float) -> None:
         model.xtWx_inv = np.linalg.inv(H)
     except np.linalg.LinAlgError:
         raise ValueError("Failed to compute covariance matrix at convergence.")
-    
+
     cond = np.linalg.cond(H)
     if cond > COND_THRESHOLD:
-        cond_warn(cond) 
+        cond_warn(cond)
 
     model.intercept, model.coefficients = (
         model.theta[0],
@@ -53,7 +55,6 @@ def internal_logit(model, max_iter: int, tol: float) -> None:
     )
 
     model_params(model)
-
 
 
 def fit_gradient(model, max_iter: int, tol: float) -> bool:
@@ -77,7 +78,7 @@ def fit_gradient(model, max_iter: int, tol: float) -> bool:
         H = (
             model.X.T @ (W[:, np.newaxis] * model.X)
         )
-        
+
         try:
             H_inv = np.linalg.inv(H)
         except np.linalg.LinAlgError:
@@ -87,7 +88,7 @@ def fit_gradient(model, max_iter: int, tol: float) -> bool:
                 "- Perfect multicollinearity between features\n"
                 "- Insufficient observations\n"
                 "- Constant or duplicate columns in X"
-        )
+            )
 
         theta_new = (
             model.theta - H_inv @ gradient
@@ -96,9 +97,9 @@ def fit_gradient(model, max_iter: int, tol: float) -> bool:
         if np.max(np.abs(theta_new - model.theta)) < tol:
             model.theta = theta_new
             return True
-        
+
         model.theta = theta_new
-    
+
     return False
 
 
@@ -128,12 +129,13 @@ def model_params(model) -> None:
     y_hat_prob = model.probabilities
 
     model.residuals = (
-        np.sign(model.y - y_hat_prob) * np.sqrt(-2 * (model.y * np.log(y_hat_prob) + 
-        (1 - model.y) * np.log(1 - y_hat_prob)))
+        np.sign(model.y - y_hat_prob) * np.sqrt(-2 * (model.y * np.log(y_hat_prob) +
+                                                      (1 - model.y) * np.log(1 - y_hat_prob)))
     )
 
     model.log_likelihood = (
-        np.sum(model.y * np.log(y_hat_prob) + (1 - model.y) * np.log(1 - y_hat_prob))
+        np.sum(model.y * np.log(y_hat_prob) +
+               (1 - model.y) * np.log(1 - y_hat_prob))
     )
 
     model.deviance = (
@@ -143,7 +145,7 @@ def model_params(model) -> None:
     y_bar = (
         np.clip(np.mean(model.y), PROB_CLIP_MIN, PROB_CLIP_MAX)
     )
-   
+
     model.null_log_likelihood = (
         np.sum(model.y * np.log(y_bar) + (1 - model.y) * np.log(1 - y_bar))
     )
@@ -189,7 +191,7 @@ def model_params(model) -> None:
     )
 
     model.ci_low, model.ci_high = (
-        model.theta - z_crit * model.std_error_coefficient, 
+        model.theta - z_crit * model.std_error_coefficient,
         model.theta + z_crit * model.std_error_coefficient
     )
 
@@ -204,6 +206,7 @@ def cond_warn(cond: float):
         stacklevel=5
     )
 
+
 def conv_warn(max_iter: int):
     warnings.warn(
         f"\nOptimization did not converge after {max_iter} iterations.\n"
@@ -216,6 +219,7 @@ def conv_warn(max_iter: int):
         stacklevel=5
     )
 
+
 def separation_warn(max_coef: float):
     warnings.warn(
         f"\nLarge coefficients detected (max |θ| > {max_coef:.2f}).\n"
@@ -226,3 +230,4 @@ def separation_warn(max_coef: float):
         UserWarning,
         stacklevel=5
     )
+

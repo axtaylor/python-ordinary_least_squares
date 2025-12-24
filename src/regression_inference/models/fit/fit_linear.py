@@ -5,6 +5,7 @@ from scipy.stats import t as t_dist
 NUMERICAL_ZERO = 1e-15
 CONDITION_THRESHOLD = 1e10
 
+
 def internal_linear(model):
 
     xtx = model.X.T @ model.X
@@ -32,9 +33,8 @@ def internal_linear(model):
 
     model_params(model)
 
-    
-def fit_ols(xtx: np.ndarray, X: np.ndarray, y: np.ndarray):
 
+def fit_ols(xtx: np.ndarray, X: np.ndarray, y: np.ndarray):
     """Solve closed form OLS using Cholesky decomposition."""
 
     try:
@@ -52,14 +52,14 @@ def fit_ols(xtx: np.ndarray, X: np.ndarray, y: np.ndarray):
         )
 
         return theta, xtx_inv
-    
+
     except np.linalg.LinAlgError:
         raise ValueError(
             "\nMatrix X'X is not positive definite. This typically indicates:\n"
             "- Perfect multicollinearity between features\n"
             "- Insufficient observations (n < k)\n"
             "- Constant or duplicate columns in X"
-    )
+        )
 
 
 def model_params(model):
@@ -97,13 +97,15 @@ def model_params(model):
     )
 
     model.r_squared_adjusted = (
-        1 - (1 - model.r_squared) * (model.X.shape[0] - 1) / model.degrees_freedom
+        1 - (1 - model.r_squared) *
+        (model.X.shape[0] - 1) / model.degrees_freedom
         if not np.isnan(model.r_squared)
         else np.nan
     )
 
     model.log_likelihood = (
-        -model.X.shape[0]/2 * (np.log(2 * np.pi) + np.log(model.rss / model.X.shape[0]) + 1)
+        -model.X.shape[0]/2 * (np.log(2 * np.pi) +
+                               np.log(model.rss / model.X.shape[0]) + 1)
         if model.rss > NUMERICAL_ZERO
         else np.inf
     )
@@ -137,7 +139,7 @@ def model_params(model):
     model.p_value_coefficient = (
         2 * (1 - t_dist.cdf(abs(model.t_stat_coefficient), model.degrees_freedom))
     )
-    
+
     t_crit = (
         t_dist.ppf(1 - model.alpha/2, model.degrees_freedom)
     )
@@ -150,11 +152,10 @@ def model_params(model):
 
 def raise_cond(cond: float):
     warnings.warn(
-            f"\nMatrix is ill-conditioned (cond={cond:.2e}).\n"
-            f"Results may be unreliable. Consider:\n"
-            f"- Removing collinear features\n"
-            f"- Scaling features\n",
-            UserWarning,
-            stacklevel=5
+        f"\nMatrix is ill-conditioned (cond={cond:.2e}).\n"
+        f"Results may be unreliable. Consider:\n"
+        f"- Removing collinear features\n"
+        f"- Scaling features\n",
+        UserWarning,
+        stacklevel=5
     )
-

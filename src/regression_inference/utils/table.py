@@ -1,22 +1,23 @@
 import numpy as np
 from typing import List
 
-def inference_table(model) -> List[dict[str: float]]:
+
+def inference_table(model) -> List[dict]:
 
     stat, model_stat = (
         ("t_statistic", model.t_stat_coefficient)
         if model.model_type == "linear" else
         ("z_statistic", model.z_stat_coefficient)
         if model.model_type in ["logit", "logit_multinomial", "logit_ordinal"] else
-        ValueError("Unknown model type")
+        ("unknown", np.array([]))
     )
 
     feature_names = model.feature_names
 
     if model.model_type == "logit_multinomial":
-        
+
         return _inference_table_multinomial(model, stat, model_stat)
-    
+
     if model.model_type == "logit_ordinal":
 
         p = len(model.feature_names)
@@ -27,7 +28,7 @@ def inference_table(model) -> List[dict[str: float]]:
         feature_names = np.concatenate([
             np.array(model.feature_names),
             np.array(cutpoint_names)
-    ])
+        ])
 
     return [
         {
@@ -39,23 +40,24 @@ def inference_table(model) -> List[dict[str: float]]:
             f'ci_low_{model.alpha}': table_format(low),
             f'ci_high_{model.alpha}': table_format(high),
         }
-    for feature, coefficient, se, statistic, p, low, high in
-    zip(
-        feature_names,
-        model.theta,
-        model.std_error_coefficient,
-        model_stat,
-        model.p_value_coefficient,
-        model.ci_low,
-        model.ci_high
-    )
-]
+        for feature, coefficient, se, statistic, p, low, high in
+        zip(
+            feature_names,
+            model.theta,
+            model.std_error_coefficient,
+            model_stat,
+            model.p_value_coefficient,
+            model.ci_low,
+            model.ci_high
+        )
+    ]
 
-def _inference_table_multinomial(model, stat_name: str, model_stat: np.ndarray) -> List[dict]:
+
+def _inference_table_multinomial(model, stat_name: str, model_stat: np.ndarray):
 
     results = []
     n_features = model.theta.shape[0]
-    n_classes = model.theta.shape[1]  
+    n_classes = model.theta.shape[1]
     class_labels = [f"Class_{model.y_classes[i+1]}" for i in range(n_classes)]
 
     for class_idx, class_label in enumerate(class_labels):
@@ -72,7 +74,7 @@ def _inference_table_multinomial(model, stat_name: str, model_stat: np.ndarray) 
                 f'ci_low_{model.alpha}': table_format(model.ci_low[feature_idx, class_idx]),
                 f'ci_high_{model.alpha}': table_format(model.ci_high[feature_idx, class_idx]),
             })
-    
+
     return results
 
 

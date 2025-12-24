@@ -11,7 +11,7 @@ PROB_CLIP_MAX = 1 - 1e-15
 
 '''
 
-adj_cutpoints: bool = False 
+adj_cutpoints: bool = False
 
     - True:  Model adjacent cutpoint differences for the coefficient and covariance matrix
              Used by statsmodels.api
@@ -21,18 +21,19 @@ adj_cutpoints: bool = False
 
 '''
 
+
 def internal_ordinal_logit(model, adj_cutpoints: bool, max_iter: int, tol: float) -> None:
-     
+
     _, model.n_features = model.X.shape
 
     model.n_classes = len(np.unique(model.y))
-    
+
     if model.n_classes <= 2:
         raise ValueError(
             "Multinomial logit requires 3+ classes. "
             "Use LogisticRegression() for 2 classes."
-    )
-    
+        )
+
     model.y_classes = (
         np.unique(model.y)
     )
@@ -48,10 +49,9 @@ def internal_ordinal_logit(model, adj_cutpoints: bool, max_iter: int, tol: float
     if not converged.success:
         conv_warn(max_iter, converged.message)
 
-    y_enc = postfit(model)  
+    y_enc = postfit(model)
 
     model_params(model, adj_cutpoints, y_enc)
-
 
 
 def fit(model, adj_cutpoints: bool, y: np.ndarray, max_iter: int, tol: float):
@@ -89,7 +89,7 @@ def fit(model, adj_cutpoints: bool, y: np.ndarray, max_iter: int, tol: float):
     )
 
     model.xtWx_inv = np.linalg.inv(H)
-    
+
     model.theta_cutpoints = np.empty_like(model.alpha_cutpoints)
 
     model.theta_cutpoints[0] = model.alpha_cutpoints[0]
@@ -105,7 +105,6 @@ def fit(model, adj_cutpoints: bool, y: np.ndarray, max_iter: int, tol: float):
     return res
 
 
-
 def negativeLL(params, X, y, n_classes):
 
     X = np.atleast_2d(X)
@@ -113,7 +112,7 @@ def negativeLL(params, X, y, n_classes):
     J = n_classes - 1
 
     beta = params[:p]
-    tau  = np.sort(params[p:])  
+    tau = np.sort(params[p:])
     xb = X @ beta
 
     def F(z):
@@ -136,7 +135,6 @@ def negativeLL(params, X, y, n_classes):
     return -np.sum(np.log(probs[np.arange(n), y]))
 
 
-
 def numerical_hessian(fun, x0, args=(), eps=1e-5):
 
     x0 = np.asarray(x0)
@@ -146,9 +144,9 @@ def numerical_hessian(fun, x0, args=(), eps=1e-5):
     f0 = fun(x0, *args)
 
     for i in range(n):
-        x_i_plus  = x0.copy()
+        x_i_plus = x0.copy()
         x_i_minus = x0.copy()
-        x_i_plus[i]  += eps
+        x_i_plus[i] += eps
         x_i_minus[i] -= eps
 
         f_ip = fun(x_i_plus, *args)
@@ -162,10 +160,14 @@ def numerical_hessian(fun, x0, args=(), eps=1e-5):
             x_mp = x0.copy()
             x_mm = x0.copy()
 
-            x_pp[i] += eps; x_pp[j] += eps
-            x_pm[i] += eps; x_pm[j] -= eps
-            x_mp[i] -= eps; x_mp[j] += eps
-            x_mm[i] -= eps; x_mm[j] -= eps
+            x_pp[i] += eps
+            x_pp[j] += eps
+            x_pm[i] += eps
+            x_pm[j] -= eps
+            x_mp[i] -= eps
+            x_mp[j] += eps
+            x_mm[i] -= eps
+            x_mm[j] -= eps
 
             f_pp = fun(x_pp, *args)
             f_pm = fun(x_pm, *args)
@@ -179,31 +181,29 @@ def numerical_hessian(fun, x0, args=(), eps=1e-5):
     return H
 
 
-
-def predict(X: np.ndarray, beta: np.ndarray, alpha: float, n_classes: int) -> np.ndarray:
+def predict(X: np.ndarray, beta: np.ndarray, alpha: np.ndarray, n_classes: int) -> np.ndarray:
 
     n = X.shape[0]
     J = len(alpha)
-    
+
     cumulative = np.zeros((n, J))
-    
+
     for j in range(J):
         eta = alpha[j] - X @ beta
         cumulative[:, j] = 1 / (1 + np.exp(-np.clip(eta, -700, 700)))
-        
+
     categorical_pr = np.zeros((n, n_classes))
     categorical_pr[:, 0] = cumulative[:, 0]
-        
+
     for j in range(1, J):
         categorical_pr[:, j] = cumulative[:, j] - cumulative[:, j-1]
 
     categorical_pr[:, J] = 1 - cumulative[:, J-1]
-            
+
     categorical_pr = np.clip(categorical_pr, PROB_CLIP_MIN, PROB_CLIP_MAX)
     categorical_pr /= categorical_pr.sum(axis=1, keepdims=True)
-            
-    return categorical_pr
 
+    return categorical_pr
 
 
 def postfit(model) -> np.ndarray:
@@ -232,13 +232,12 @@ def postfit(model) -> np.ndarray:
     return y_onehot
 
 
-
 def model_params(model, adj_cutpoints: bool, y_enc: np.ndarray) -> None:
 
     y_hat_prob = (
         np.clip(model.probabilities, PROB_CLIP_MIN, PROB_CLIP_MAX)
     )
-    
+
     model.log_likelihood = (
         np.sum(y_enc * np.log(y_hat_prob))
     )
@@ -246,7 +245,7 @@ def model_params(model, adj_cutpoints: bool, y_enc: np.ndarray) -> None:
     model.deviance = (
         -2 * model.log_likelihood
     )
-    
+
     n_samples, _ = y_enc.shape
 
     class_probabilities = (
@@ -283,10 +282,12 @@ def model_params(model, adj_cutpoints: bool, y_enc: np.ndarray) -> None:
 
     if adj_cutpoints:
         model.variance_coefficient = transform_covariance(model)
-        model.std_error_coefficient = np.sqrt(np.maximum(np.diag(model.variance_coefficient), 1e-20))
+        model.std_error_coefficient = np.sqrt(
+            np.maximum(np.diag(model.variance_coefficient), 1e-20))
     else:
         model.variance_coefficient = model.xtWx_inv
-        model.std_error_coefficient = np.sqrt(np.diag(model.variance_coefficient))
+        model.std_error_coefficient = np.sqrt(
+            np.diag(model.variance_coefficient))
 
     model.z_stat_coefficient = (
         model.theta / model.std_error_coefficient
@@ -312,7 +313,6 @@ def model_params(model, adj_cutpoints: bool, y_enc: np.ndarray) -> None:
     model.residuals = (actual_class != predicted_class).astype(float)
 
 
-
 def transform_covariance(model) -> np.ndarray:
 
     beta = model.coefficients
@@ -330,12 +330,11 @@ def transform_covariance(model) -> np.ndarray:
 
     for j in range(1, J):
         denom = alpha[j] - alpha[j - 1]
-        G[p + j, p + j]     =  1.0 / denom
+        G[p + j, p + j] = 1.0 / denom
         G[p + j, p + j - 1] = -1.0 / denom
 
     V_theta = G @ V @ G.T
     return V_theta
-
 
 
 def conv_warn(max_iter: int, message: str = ""):
@@ -350,4 +349,4 @@ def conv_warn(max_iter: int, message: str = ""):
         f"- Ensuring sufficient samples per class\n",
         UserWarning,
         stacklevel=5
-)
+    )

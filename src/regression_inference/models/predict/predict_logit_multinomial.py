@@ -1,30 +1,32 @@
-import numpy as np    
+import numpy as np
 from scipy.stats import norm
+
 
 def softmax(Z: np.ndarray) -> np.ndarray:
 
     Z_stable = Z - np.max(Z, axis=1, keepdims=True)
     exp_Z = np.exp(np.clip(Z_stable, -700, 700))
     return exp_Z / np.sum(exp_Z, axis=1, keepdims=True)
-    
+
 
 def predict(model, X, alpha, return_table):
 
     prediction = softmax(
-                np.column_stack(
-                    [
-                        np.zeros(X.shape[0]),
-                        np.asarray(X, dtype=float) @ model.coefficients + model.intercept
-                    ]
-                )
-            )
+        np.column_stack(
+            [
+                np.zeros(X.shape[0]),
+                np.asarray(
+                    X, dtype=float) @ model.coefficients + model.intercept
+            ]
+        )
+    )
 
     if not return_table:
         return prediction
-    
+
     prediction_features = {
-            name: f'{value_at.item():.2f}'
-            for name, value_at in zip(model.feature_names[1:], X[0])
+        name: f'{value_at.item():.2f}'
+        for name, value_at in zip(model.feature_names[1:], X[0])
     }
 
     X = (
@@ -32,9 +34,9 @@ def predict(model, X, alpha, return_table):
     )
 
     multinomial_classes, prediction_probs, prediction_linear, std_errors, z_statistics, p_values, ci_lows, ci_highs = (
-        [],[],[],[],[],[],[],[]
+        [], [], [], [], [], [], [], []
     )
-        
+
     x = X[0]
 
     p, J = model.theta.shape
@@ -43,22 +45,22 @@ def predict(model, X, alpha, return_table):
 
     ''' 'J' Linear Predictors -> Add Reference Class -> Convert To Probabilities '''
 
-    prediction = x @ model.theta        
-    eta_full = np.r_[0.0, prediction]     
+    prediction = x @ model.theta
+    eta_full = np.r_[0.0, prediction]
     prediction_prob = softmax(eta_full[None, :])[0]
     pred_class = int(np.argmax(prediction_prob))
 
     '''Initial inference for class Y = 0'''
 
     p0, pj = (
-        prediction_prob[0],  prediction_prob[1:]   
+        prediction_prob[0],  prediction_prob[1:]
     )
 
     g0 = np.zeros(p * J)
 
     for j in range(J):
 
-        g0[ j*p : (j+1)*p ] = -p0 * pj[j] * x
+        g0[j*p: (j+1)*p] = -p0 * pj[j] * x
 
     var_p0 = (
         g0 @ model.xtWx_inv @ g0
@@ -72,12 +74,12 @@ def predict(model, X, alpha, return_table):
         max(0.0, p0 - z_crit * se_p0),
         min(1.0, p0 + z_crit * se_p0)
     )
-  
+
     multinomial_classes.append(int(model.y_classes[0]))
     prediction_probs.append(np.round(p0, 4))
     prediction_linear.append(0.0)
     std_errors.append(np.round(se_p0, 4))
-    z_statistics.append(None)       
+    z_statistics.append(None)
     p_values.append(None)
     ci_lows.append(np.round(ci_low_p0, 4))
     ci_highs.append(np.round(ci_high_p0, 4))
@@ -93,7 +95,7 @@ def predict(model, X, alpha, return_table):
 
         ''' Log odds relative to reference class'''
 
-        ci_low_eta, ci_high_eta = (     
+        ci_low_eta, ci_high_eta = (
             prediction[j] - z_crit * se_eta,
             prediction[j] + z_crit * se_eta
         )
@@ -118,7 +120,7 @@ def predict(model, X, alpha, return_table):
             if se_eta > 0 else
             np.inf
         )
-            
+
         p_val = (
             2 * (1 - norm.cdf(abs(z_stat)))
         )
@@ -133,7 +135,7 @@ def predict(model, X, alpha, return_table):
         ci_highs.append(np.round(p_high, 4))
 
     return {
-        "features": str(prediction_features),  
+        "features": str(prediction_features),
         "prediction_linear": [prediction_linear],
         "prediction_class": pred_class,
         "prediction_prob": [prediction_probs],
@@ -143,6 +145,3 @@ def predict(model, X, alpha, return_table):
         f"ci_low_{alpha}": [ci_lows],
         f"ci_high_{alpha}": [ci_highs],
     }
-
-
-

@@ -1,26 +1,27 @@
-import numpy as np    
+import numpy as np
 from scipy.stats import norm
 
+
 def sigmoid(z):
-        return np.where(
-            z >= 0,
-            1 / (1 + np.exp(-z)),
-            np.exp(z) / (1 + np.exp(z))
+    return np.where(
+        z >= 0,
+        1 / (1 + np.exp(-z)),
+        np.exp(z) / (1 + np.exp(z))
     )
 
 
 def predict(model, X, alpha, return_table):
 
     prediction = (
-          sigmoid(X @ model.coefficients + model.intercept)
+        sigmoid(X @ model.coefficients + model.intercept)
     )
 
     if not return_table:
-          return prediction
-    
+        return prediction
+
     prediction_features = {
-            name: f'{value_at.item():.2f}'
-            for name, value_at in zip(model.feature_names[1:], X[0])
+        name: f'{value_at.item():.2f}'
+        for name, value_at in zip(model.feature_names[1:], X[0])
     }
 
     X = (
@@ -30,7 +31,7 @@ def predict(model, X, alpha, return_table):
     prediction = X @ model.theta
 
     se_prediction = (
-          (np.sqrt((X @ model.variance_coefficient @ X.T)).item())
+        (np.sqrt((X @ model.variance_coefficient @ X.T)).item())
     )
 
     prediction_prob = sigmoid(prediction)
@@ -50,7 +51,7 @@ def predict(model, X, alpha, return_table):
     z_stat = (
         prediction / se_prediction
         if se_prediction > 0
-        else np.inf
+        else np.array([np.inf])
     )
 
     p = (
@@ -67,3 +68,4 @@ def predict(model, X, alpha, return_table):
         f"ci_low_{alpha}": [np.round(ci_low_prob.item(), 4)],
         f"ci_high_{alpha}": [np.round(ci_high_prob.item(), 4)],
     })
+
